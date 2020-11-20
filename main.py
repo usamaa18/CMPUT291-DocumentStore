@@ -2,6 +2,7 @@ import json
 import sys
 import pymongo
 from userReport import *
+from menuFunctions import *
 
 DATABASE_NAME = "291db"
 COLLECTION_NAMES = {
@@ -9,13 +10,42 @@ COLLECTION_NAMES = {
     "posts": "Posts.json",
     "votes": "Votes.json"
 }
+ERROR_MESSAGE = "Invalid option. Try again..."
 
 def mainMenu(db):
     # TODO
     userID = input("User ID (optional): ").strip().lower()
     if userID != '':
         printUserReport(userID, db)
-    pass
+
+    needPrintMenu = True
+    while True:
+        if needPrintMenu:
+            print('''
+                MAIN MENU
+            1. Post a question
+            2. Search for questions
+            0. Exit
+            ''')
+            needPrintMenu = False
+        try:
+            val = int(input("> "))
+        except ValueError:
+            print(ERROR_MESSAGE)
+            continue
+        if (val == 1):
+            postQuestion(userID, db)
+            needPrintMenu = True
+        elif (val == 2):
+            searchQuestions(userID, db)
+            needPrintMenu = True
+        elif (val == 0):
+            break
+        else:
+            print(ERROR_MESSAGE)
+            continue
+
+        break
 
 
 # creates a collection in db called colName and inserts data from filename
@@ -52,7 +82,7 @@ if __name__ == "__main__":
         try:
             port = int(sys.argv[1])
         except ValueError:
-            print("Oops!  That was no valid port number.  Try again...")
+            print("Invalid port number.  Try again...")
             exit()
 
         # TODO: remove this
