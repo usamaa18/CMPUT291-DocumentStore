@@ -34,18 +34,25 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
         if (val == 1):
-            postQuestion(userID, db)
+            print("Enter title:")
+            title = input("> ").strip()
+            print("Enter body:")
+            body = input("> ").strip()
+            print("Enter tags (seperated by space):")
+            tags = input("> ").strip().split()
+            postQuestion(title, body, tags, userID, db)
             needPrintMenu = True
         elif (val == 2):
-            searchQuestions(userID, db)
-            needPrintMenu = True
+            print("Enter keywords to search:")
+            keywords = input("> ").strip().split()
+            res = searchQuestions(keywords, userID, db)
+            printQuestions(res)
+            postSearchActions(res, userID, db)
         elif (val == 0):
             break
         else:
             print(ERROR_MESSAGE)
             continue
-
-        break
 
 
 # creates a collection in db called colName and inserts data from filename
