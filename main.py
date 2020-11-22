@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 import pymongo
 from userReport import *
 from menuFunctions import *
@@ -36,10 +37,15 @@ def mainMenu(db):
         if (val == 1):
             print("Enter title:")
             title = input("> ").strip()
+            while title == '':
+                title = input("> ").strip()
             print("Enter body:")
             body = input("> ").strip()
-            print("Enter tags (seperated by space):")
-            tags = input("> ").strip().split()
+            while body == '':
+                body = input("> ").strip()
+            print("Enter tags (optional):")
+            tags = input("> ").strip().lower().split()
+            print(tags)
             postQuestion(title, body, tags, userID, db)
             needPrintMenu = True
         elif (val == 2):
@@ -97,7 +103,7 @@ def createCollection(colName, filename, db):
 # delete existing db and create new one. Fill db with collections using json files
 def  resetDB(client):
     print("Resetting " + DATABASE_NAME + " database...")
-
+    startTime = time.time()
     # deleting pre-existing db
     if DATABASE_NAME in client.list_database_names():
         client.drop_database(DATABASE_NAME)
@@ -106,6 +112,10 @@ def  resetDB(client):
     # build datbase using json files
     for colName, filename in COLLECTION_NAMES.items():
         createCollection(colName, filename, db)
+    timeTaken = time.time() - startTime
+    print("Sucessfully reset (" + str(timeTaken) + " seconds)")
+
+    
 
 
 if __name__ == "__main__":
