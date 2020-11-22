@@ -60,11 +60,38 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
 
+def createIndex(db,colName):
+    #return all records in posts.json
+    rows= colName.find()
+#alter text into list
+    for row in rows:
+        body_text= list(row["Body"])
+        title_text= list(row["Title"])
+        #modify list by removing punctuation
+        body=''.join( char if char.isalnum() else " " for char in body_text)
+        title= ''.join(char if char.isalnum() else " " for char in title_text)
+        
+        
+        #parse through each word and push into array 
+        for word in body:
+            if len(word) >= 3:
+                db.colname.update_one({"_id": row["_id"]},{$push:{"terms": word }})
+                
+                
+        for word in title:
+            if len(word) >= 3:
+                db.colname.update_one({"_id": row["_id"]},{$push:{"terms": word }})
+        #db.colname.createIndex({"terms": 1})
+        
 
+       
+        
+        
 # creates a collection in db called colName and inserts data from filename
 def createCollection(colName, filename, db):
     collection = db[colName]
     with open(filename) as file:
+        #data is a list
         data = json.load(file)[colName]["row"]
     if isinstance(data, list):
         collection.insert_many(data)
