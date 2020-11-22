@@ -1,16 +1,17 @@
 from datetime import datetime
 import random, string
-def id_generator():
-    id=''
+def id_generator(collection):
+    _id=''
     chars= string.ascii_lowercase + string.digits
     for i in range(4):
         id+= random.choice(chars)
-    #c.execute('''select pid from posts where pid = ?;''',(pid,))
-    #rs=c.fetchone()
-    #if rs == None:
-     #   return pid
-    #else:
-     #   pid_generator()
+    ret= collection.find_one({"Id": _id })
+    if ret == None:
+        return _id
+    else:
+        id_generator(collection)
+
+    
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, collection,db):
     #Hibaq's Job
@@ -21,7 +22,6 @@ def postQuestion(title, body, tags, userID, collection,db):
     bodyFormat= "<p>"+ body + "<p>"
     #creating _id
     object_id= id_generator()
-    contentlicense =
     if userID not None:
         question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": userID,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
     else:
