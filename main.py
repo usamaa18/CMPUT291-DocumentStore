@@ -75,6 +75,7 @@ def createIndex(db,colName):
         for word in title:
             if len(word) >= 3:
                 db.colname.update_one({"_id": row["_id"]},{$push:{"terms": word }})
+        #db.colname.createIndex({"terms": 1})
         
 
        
