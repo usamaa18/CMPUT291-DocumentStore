@@ -60,23 +60,6 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
 
-def createIndexList(colName, db):
-    rows = db[colName].find({}, ["Title", "Body", "Tags"])
-    startTimeList = time.time_ns()
-    i=0
-    for row in rows:
-        i+=1
-        print(i)
-        text= list(row["Body"])
-        body = ''.join( char if (char.isalnum() or char == "'") else " " for char in text).lower().split()
-        body = list(set(body))
-        #print(body)
-        for word in body:
-            if len(word) >= 3:
-                db.colname.update_one({"_id": row["_id"]},{"$push":{"terms": word }})
-
-    print ("ListTime: " + str(((time.time_ns()-startTimeList)/ (10 ** 9))))
-
 def createIndexAggregate(colName, db):
     startTime = time.time()
     db[colName].update_many(
@@ -106,30 +89,6 @@ def createIndexAggregate(colName, db):
     )
     print ("AggregateRegexTime: " + str(((time.time()-startTime))))
 
-def createIndexRegex (colName, db):
-    count = db[colName].count_documents({})
-    print("Count: " + str(count))
-    rows = db[colName].find({}, ["Title", "Body", "Tags"])
-    time.sleep(2)
-    startTime = time.time()
-    lastTime = time.time()
-    i=0
-    for row in rows:
-        i += 1
-        words = extractWords(row, "Body")
-        # if "Title" in row:
-        #     words += extractWords(row, "Title")
-        # #if "Tags" in row:
-        #    words += extractWords(row, "Tags")
-        db.posts.update_one({"_id": row["_id"]}, {"$push": {"terms": words}})
-        #wordSet = list(set(words))
-        #db.posts.update_one({"_id": row["_id"]}, {"$set": {"terms": wordSet}})
-
-    print ("RegexListTime: " + str(((time.time()-startTime))))
-    
-
-       
-        
         
 # creates a collection in db called colName and inserts data from filename
 def createCollection(colName, filename, db):
@@ -179,10 +138,8 @@ if __name__ == "__main__":
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         # TODO: uncomment this
-        #resetDB(client)
-        db = client[DATABASE_NAME]
-        createIndexList("posts", db)
         resetDB(client)
+        db = client[DATABASE_NAME]
         createIndexAggregate("posts", db)
 
         print(db)
