@@ -41,7 +41,7 @@ def postQuestion(title, body, tags, userID, db):
         "PostTypeId": "1",
         "CreationDate": datatimeString,
         "Title": title,
-        "Body": body,
+        "Body": "<p>"+body+"</p>",
         "Score": 0,
         "ViewCount": 0,
         "AnswerCount": 0,
@@ -67,7 +67,7 @@ def postAnswer(body, questionID, userID, db):
         "Id": newId,
         "PostTypeId": "2",
         "CreationDate": datatimeString,
-        "Body": body,
+        "Body": "<p>"+body+"</p>",
         "ParentId": questionID,
         "Score": 0,
         "CommentCount": 0,
@@ -91,6 +91,7 @@ def votePost(postID, userID, db):
             return 0
     db.votes.insert_one(vote)
     db.posts.update_one( {"Id": postID}, {"$inc": {"Score": 1} } )
+    return 1
 
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
