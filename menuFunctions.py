@@ -1,12 +1,13 @@
 from datetime import datetime
-import random, string 
- 
+import random, string
+
 # return string formatted datetime
 def formatDate(date):
     return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
 # generate a unique ID for the collection
 def generateID(collection):
+    return 1 # temporary
     _id=''
     chars= string.ascii_lowercase + string.digits
     for i in range(4):
@@ -16,8 +17,6 @@ def generateID(collection):
         return _id
     else:
         generateID(collection)
-    # TODO
-    return 1 
 
 # increment tag count by 1, or create new tag with unique id
 def updateTag(tag, db):
@@ -32,9 +31,6 @@ def updateTag(tag, db):
             "Count": 1
         }
         db.tags.insert_one(newTag)
-    
-  
-
     
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, db):
@@ -83,8 +79,18 @@ def postAnswer(body, questionID, userID, db):
 
 # casts a vote on postID on behalf of userID. Returns 1 if successful, 0 if not
 def votePost(postID, userID, db):
-    # TODO
-    pass
+    vote = {
+        "Id": generateID(db.votes),
+        "PostId": postID,
+        "VoteTypeId": "2",
+        "CreationDate": formatDate(datetime.today())
+    }
+    if (userID != ''):
+        vote["UserId"] = userID
+        if (db.votes.find_one({"UserId": userID, "PostId": postID})):
+            return 0
+    db.votes.insert_one(vote)
+    db.posts.update_one( {"Id": postID}, {"$inc": {"Score": 1} } )
 
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
@@ -139,7 +145,12 @@ def postSearchActions(res, userID, db):
     if (wantToVote):
         if (votePost(answerID, userID, db)):
             print("Successfully voted")
+        else:
+            print("Error: " + userID + " already voted for this post")
 
 
     # 3. vote for question
-    votePost(questionID, userID, db)
+    if (votePost(questionID, userID, db)):
+        print("Successfully voted")
+    else:
+        print("Error: " + userID + " already voted for this post")
