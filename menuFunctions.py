@@ -1,11 +1,21 @@
 from datetime import datetime
-
+import random, string 
+ 
 # return string formatted datetime
 def formatDate(date):
     return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
 # generate a unique ID for the collection
 def generateID(collection):
+    _id=''
+    chars= string.ascii_lowercase + string.digits
+    for i in range(4):
+        id+= random.choice(chars)
+    ret= collection.find_one({"Id": _id })
+    if ret == None:
+        return _id
+    else:
+        generateID(collection)
     # TODO
     return 1 
 
@@ -23,7 +33,9 @@ def updateTag(tag, db):
         }
         db.tags.insert_one(newTag)
     
+  
 
+    
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, db):
     newId = generateID(db.posts)
@@ -81,7 +93,9 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
+    #Hibaq's Job
     # TODO  
+
     pass
 
 
