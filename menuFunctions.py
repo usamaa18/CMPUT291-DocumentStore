@@ -1,8 +1,38 @@
-
+from datetime import datetime
+import random, string
+def id_generator():
+    id=''
+    chars= string.ascii_lowercase + string.digits
+    for i in range(4):
+        id+= random.choice(chars)
+    #c.execute('''select pid from posts where pid = ?;''',(pid,))
+    #rs=c.fetchone()
+    #if rs == None:
+     #   return pid
+    #else:
+     #   pid_generator()
 # posts a question. Returns 1 if successful, 0 otherwise
-def postQuestion(title, body, tags, userID, db):
+def postQuestion(title, body, tags, userID, collection,db):
     #Hibaq's Job
-    pass
+    #modifying tags
+    tag_str= ''.join('{}'.format(tag) for tag in tags)
+    cdate= datetime.now()
+    dateFormat= cdate.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    bodyFormat= "<p>"+ body + "<p>"
+    #creating _id
+    object_id= id_generator()
+    contentlicense =
+    if userID not None:
+        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": userID,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
+    else:
+        #Users can interact with db w/o logging in ?
+        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": None ,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
+    collection.insert_one(question)
+    return 1
+
+
+
+
 
 # posts an answer to a question. Return 1 if successful, 0 otherwise
 def postAnswer(body, questionID, userID, db):
