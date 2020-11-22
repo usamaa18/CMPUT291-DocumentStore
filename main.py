@@ -44,7 +44,7 @@ def mainMenu(db):
             while body == '':
                 body = input("> ").strip()
             print("Enter tags (optional):")
-            tags = input("> ").strip().split()
+            tags = input("> ").strip().lower().split()
             print(tags)
             postQuestion(title, body, tags, userID, db)
             needPrintMenu = True
