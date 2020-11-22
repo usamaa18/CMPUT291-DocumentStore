@@ -1,10 +1,12 @@
 
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, db):
+    #Hibaq's Job
     pass
 
 # posts an answer to a question. Return 1 if successful, 0 otherwise
 def postAnswer(body, questionID, userID, db):
+    #Hibaq's Job
     # TODO
     pass
 
@@ -20,7 +22,9 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
+    #Hibaq's Job
     # TODO  
+
     pass
 
 
