@@ -60,29 +60,73 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
 
-def createIndex(db,colName):
-    #return all records in posts.json
-    rows= colName.find()
-#alter text into list
+def createIndexList(colName, db):
+    rows = db[colName].find({}, ["Title", "Body", "Tags"])
+    startTimeList = time.time_ns()
+    i=0
     for row in rows:
-        body_text= list(row["Body"])
-        title_text= list(row["Title"])
-        #modify list by removing punctuation
-        body=''.join( char if char.isalnum() else " " for char in body_text)
-        title= ''.join(char if char.isalnum() else " " for char in title_text)
-        
-        
-        #parse through each word and push into array 
+        i+=1
+        print(i)
+        text= list(row["Body"])
+        body = ''.join( char if (char.isalnum() or char == "'") else " " for char in text).lower().split()
+        body = list(set(body))
+        #print(body)
         for word in body:
             if len(word) >= 3:
                 db.colname.update_one({"_id": row["_id"]},{"$push":{"terms": word }})
-                
-                
-        for word in title:
-            if len(word) >= 3:
-                db.colname.update_one({"_id": row["_id"]},{"$push":{"terms": word }})
-        #db.colname.createIndex({"terms": 1})
-        
+
+    print ("ListTime: " + str(((time.time_ns()-startTimeList)/ (10 ** 9))))
+
+def createIndexAggregate(colName, db):
+    startTime = time.time()
+    db[colName].update_many(
+        {},
+        [{
+            "$set": {
+                "terms": {
+                    "$setDifference": [{
+                        "$map": {
+                            "input": {
+                                "$regexFindAll": {
+                                    "input": {
+                                        "$toLower": {
+                                            "$concat": ["$Body", "$Title", "$Tags"]
+                                        }
+                                    },
+                                    "regex": "[\w']{3,}"
+                                }
+                            },
+                            "in": "$$this.match"
+                        }, 
+                    }, 
+                    [] ]
+                }
+            }
+        }]
+    )
+    print ("AggregateRegexTime: " + str(((time.time()-startTime))))
+
+def createIndexRegex (colName, db):
+    count = db[colName].count_documents({})
+    print("Count: " + str(count))
+    rows = db[colName].find({}, ["Title", "Body", "Tags"])
+    time.sleep(2)
+    startTime = time.time()
+    lastTime = time.time()
+    i=0
+    for row in rows:
+        i += 1
+        words = extractWords(row, "Body")
+        # if "Title" in row:
+        #     words += extractWords(row, "Title")
+        # #if "Tags" in row:
+        #    words += extractWords(row, "Tags")
+        db.posts.update_one({"_id": row["_id"]}, {"$push": {"terms": words}})
+        #wordSet = list(set(words))
+        #db.posts.update_one({"_id": row["_id"]}, {"$set": {"terms": wordSet}})
+
+    print ("RegexListTime: " + str(((time.time()-startTime))))
+    
 
        
         
@@ -101,7 +145,7 @@ def createCollection(colName, filename, db):
 
 
 # delete existing db and create new one. Fill db with collections using json files
-def  resetDB(client):
+def resetDB(client):
     print("Resetting " + DATABASE_NAME + " database...")
     startTime = time.time()
     # deleting pre-existing db
@@ -135,8 +179,11 @@ if __name__ == "__main__":
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         # TODO: uncomment this
-        # resetDB(client)
+        #resetDB(client)
         db = client[DATABASE_NAME]
+        createIndexList("posts", db)
+        resetDB(client)
+        createIndexAggregate("posts", db)
 
         print(db)
         # TODO: create index
