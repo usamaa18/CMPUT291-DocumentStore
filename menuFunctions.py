@@ -22,11 +22,11 @@ def postQuestion(title, body, tags, userID, collection,db):
     bodyFormat= "<p>"+ body + "<p>"
     #creating _id
     object_id= id_generator()
-    if userID not None:
-        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": userID,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
+    if userID == None:
+        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": None,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
     else:
         #Users can interact with db w/o logging in ?
-        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": None ,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
+        question= {"_id": object_id, "PostTypeId": "1", "CreationDate": dateFormat, "Score": 0, "Body": bodyFormat, "Title": title, "Owner": userID ,"Tags": tag_str, "ViewCount": 0 , "AnswerCount": 0 ,"CommentCount":0, "ContentLiscence": "CC BY-SA 2.5" }
     collection.insert_one(question)
     return 1
 
