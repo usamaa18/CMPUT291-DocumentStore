@@ -1,7 +1,10 @@
 import json
+from re import S
 import sys
 import time
 import pymongo
+import threading
+from pprint import pprint
 from userReport import *
 from menuFunctions import *
 
@@ -50,7 +53,7 @@ def mainMenu(db):
             needPrintMenu = True
         elif (val == 2):
             print("Enter keywords to search:")
-            keywords = input("> ").strip().split()
+            keywords = input("> ").strip().lower().split()
             res = searchQuestions(keywords, userID, db)
             printQuestions(res)
             postSearchActions(res, userID, db)
@@ -87,9 +90,18 @@ def createIndexAggregate(colName, db):
             }
         }]
     )
-    print ("AggregateRegexTime: " + str(((time.time()-startTime))))
+    endTime = time.time()
+    print ("Time to insert 'terms': " + str(((endTime-startTime))))
+    db["posts"].create_index("terms", name = "termsIndexRegular")
+    print ("Time to index 'terms': " + str(((time.time() - endTime)))) 
 
-        
+def indexText(placeholder):
+    startTime = time.time()
+    print ("Beginning text indexing... (background)")
+    db["posts"].create_index([("Title", pymongo.TEXT), ("Body", pymongo.TEXT), ("Tags", pymongo.TEXT)], name = "textIndex", background=True)
+    print("Successfully created text index (" + str(time.time()-startTime) + " sec)")
+    
+
 # creates a collection in db called colName and inserts data from filename
 def createCollection(colName, filename, db):
     collection = db[colName]
@@ -115,7 +127,8 @@ def resetDB(client):
     # build datbase using json files
     for colName, filename in COLLECTION_NAMES.items():
         createCollection(colName, filename, db)
-    timeTaken = time.time() - startTime
+    endTime = time.time()
+    timeTaken = endTime - startTime
     print("Sucessfully reset (" + str(timeTaken) + " seconds)")
 
     
@@ -141,6 +154,7 @@ if __name__ == "__main__":
         resetDB(client)
         db = client[DATABASE_NAME]
         createIndexAggregate("posts", db)
+        threading.Thread(target=indexText, args=(None,)).start()
 
         print(db)
         # TODO: create index

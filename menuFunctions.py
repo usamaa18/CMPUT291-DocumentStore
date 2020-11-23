@@ -1,5 +1,7 @@
 from datetime import datetime
 import random, string
+from pymongo.errors import OperationFailure 
+   
 
 # return string formatted datetime
 def formatDate(date):
@@ -95,6 +97,25 @@ def votePost(postID, userID, db):
 
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
+    count = 0
+    keywordsLarge = list()
+    keywordsSmall = list()
+    for word in keywords:
+        if len(word) >= 3:
+            keywordsLarge.append(word)
+        else:
+            keywordsSmall.append(word)
+    print(keywordsLarge)
+    count += db.posts.count_documents({"terms": {"$in": keywordsLarge}})
+    print(count)
+    
+
+    if (len(keywordsSmall) > 0):
+        try:
+            count += db.posts.count_documents({ "$text": { "$search": " ".join(keywords) } })
+        except OperationFailure as f:
+            print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
+    print(count)
     # TODO 
     pass
 
