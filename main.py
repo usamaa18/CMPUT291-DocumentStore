@@ -191,6 +191,8 @@ if __name__ == "__main__":
         #createIndexAggregate("posts", db)
         #threading.Thread(target=indexText, args=(db,)).start()
         print("TIME: " + str(time.time() - startTime))
+        user_input=str(input("> questionID:"))
+        getAnswers(user_input, None, db)
         print(db)
         # TODO: create index
         #mainMenu(db)

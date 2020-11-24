@@ -123,7 +123,6 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-  
 
     
     while True:
@@ -212,8 +211,24 @@ def printAnswers(accepted_ans,answers,questionID):
     
 
 
+def selectAnswer(questionID, db):
+    maxCount= 80
+    while True:
 
-# allows user to select a post from list. then shows details about post. then shows post-search menu
+        print("Select a answer (AnswerID)")
+        answerID = input("> ").strip()
+        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
+        postAnswer = []
+       
+        
+        if selectAnswer != None:
+            pprint.pprint(selectAnswer)
+            break
+            
+        else:
+            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+
+
 def postSearchActions(res, userID, db):
 
     # get user input for questionID
