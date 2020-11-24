@@ -170,6 +170,7 @@ def getAnswers(questionID, userID, db):
 
 # format search query results in a user-friendly way
 def printQuestions(res):
+   
     pass
 
 # format answer list in a user-friendly way
@@ -177,7 +178,7 @@ def printAnswers(accepted_ans,answers,questionID):
     table= []
     
     
-    column_names= ["Id","Body", "CreationDate", "Score"]
+    column_names= ["AnswerId","Body", "CreationDate", "Score"]
 
     if accepted_ans != None:
         subtable1=[]
@@ -253,3 +254,20 @@ def postSearchActions(res, userID, db):
         print("Successfully voted")
     else:
         print("Error: " + userID + " already voted for this post")
+ 
+def selectAnswer(questionID, db):
+    while True:
+
+        print("Select a post (AnswerID)")
+        answerID = input("> ").strip()
+        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
+        postAnswer = []
+       
+        
+        if selectAnswer != None:
+            pprint.pprint(selectAnswer)
+            break
+            
+        else:
+            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+
