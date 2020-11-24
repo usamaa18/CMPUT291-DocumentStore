@@ -1,5 +1,5 @@
 import json
-from re import S
+import re
 import sys
 import time
 import pymongo
@@ -7,6 +7,10 @@ import threading
 from pprint import pprint
 from userReport import *
 from menuFunctions import *
+import multiprocessing
+import orjson
+import bsonjs
+from bson.raw_bson import RawBSONDocument
 
 DATABASE_NAME = "291db"
 COLLECTION_NAMES = {
@@ -102,17 +106,46 @@ def indexText(placeholder):
     print("Successfully created text index (" + str(time.time()-startTime) + " sec)")
     
 
+def chunks(l, n):
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+        
+def fastBSON(item):
+    return RawBSONDocument(bsonjs.loads(orjson.dumps(item)))
+        
 # creates a collection in db called colName and inserts data from filename
 def createCollection(colName, filename, db):
+    print("===============")
+    time1 = time.time()
     collection = db[colName]
-    with open(filename) as file:
+    with open(filename, 'rt') as file:
         #data is a list
-        data = json.load(file)[colName]["row"]
+        #print(file.read())
+        data = orjson.loads(file.read())[colName]["row"]
+    time2 = time.time()
+    print("Time to load file: " + str(time2 - time1))
+    count = len(data)
+    numProc = 8
+    multiple = 1
+    chunkSize = int (count / (numProc * 2))
+    print(count)
+    print(chunkSize)
+    pool = multiprocessing.Pool(processes=numProc) #spawn 8 processes
+    bsonData = pool.imap_unordered(fastBSON,data,chunksize=chunkSize)  #creates chunks of 1000 document id's
+    pool.close()
+    bsonData = list(bsonData)
+    # for item in data:
+    #     bsonData.append(fastBSON(item))
+    #print(bsonData)
+    time3 = time.time()
+    print("Time to load: " + str(time3-time2))
     if isinstance(data, list):
-        collection.insert_many(data)
+        collection.insert_many(bsonData)
     else:
-        collection.insert_one(data)
+        collection.insert_one(bsonData)
+    print("Time to insert: " + str(time.time() - time3))
     return collection
+
 
 
 # delete existing db and create new one. Fill db with collections using json files
@@ -149,12 +182,12 @@ if __name__ == "__main__":
         port = 12345
 
         # connecting to server
-        client = pymongo.MongoClient('localhost', port)
+        client = pymongo.MongoClient('localhost', port, document_class=RawBSONDocument)
         # TODO: uncomment this
         resetDB(client)
         db = client[DATABASE_NAME]
-        createIndexAggregate("posts", db)
-        threading.Thread(target=indexText, args=(None,)).start()
+        #createIndexAggregate("posts", db)
+        #threading.Thread(target=indexText, args=(None,)).start()
 
         print(db)
         # TODO: create index
