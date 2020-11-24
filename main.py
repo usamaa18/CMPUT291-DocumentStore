@@ -11,6 +11,7 @@ import multiprocessing
 import orjson
 import bsonjs
 from bson.raw_bson import RawBSONDocument
+from functools import partial
 
 DATABASE_NAME = "291db"
 COLLECTION_NAMES = {
@@ -19,6 +20,7 @@ COLLECTION_NAMES = {
     "votes": "Votes.json"
 }
 ERROR_MESSAGE = "Invalid option. Try again..."
+NUM_PROCESSES = 8
 
 def mainMenu(db):
     # TODO
@@ -95,14 +97,16 @@ def createIndexAggregate(colName, db):
         }]
     )
     endTime = time.time()
-    print ("Time to insert 'terms': " + str(((endTime-startTime))))
-    db["posts"].create_index("terms", name = "termsIndexRegular")
-    print ("Time to index 'terms': " + str(((time.time() - endTime)))) 
 
-def indexText(placeholder):
+def indexTerms(db):
+    startTime = time.time()
+    db["posts"].create_index("terms", name = "termsIndexRegular")
+    print ("Time to index 'terms': " + str(((time.time() - startTime)))) 
+
+def indexText(db):
     startTime = time.time()
     print ("Beginning text indexing... (background)")
-    db["posts"].create_index([("Title", pymongo.TEXT), ("Body", pymongo.TEXT), ("Tags", pymongo.TEXT)], name = "textIndex", background=True)
+    db["posts"].create_index([("Title", pymongo.TEXT), ("Body", pymongo.TEXT), ("Tags", pymongo.TEXT)], name = "textIndex")
     print("Successfully created text index (" + str(time.time()-startTime) + " sec)")
     
 
@@ -113,8 +117,27 @@ def chunks(l, n):
 def fastBSON(item):
     return RawBSONDocument(bsonjs.loads(orjson.dumps(item)))
         
+def extractWords(row, keyName):
+    text = row[keyName].lower()
+    words = re.findall("[\w']{3,}", text)
+    return words    
+
+def buildTerms(row):
+    words = extractWords(row, "Body")
+    if "Title" in row:
+        words += extractWords(row, "Title")
+    if "Tags" in row:
+        words += extractWords(row, "Tags")
+    wordSet = list(set(words))
+    row["terms"] = wordSet
+    return row
+    #print(row["terms"])
+
 # creates a collection in db called colName and inserts data from filename
-def createCollection(colName, filename, db):
+def createCollection(colName, db):
+    client = pymongo.MongoClient('localhost', 12345, document_class=RawBSONDocument)
+    db = client[DATABASE_NAME]
+    filename = COLLECTION_NAMES[colName]
     print("===============")
     time1 = time.time()
     collection = db[colName]
@@ -123,22 +146,17 @@ def createCollection(colName, filename, db):
         #print(file.read())
         data = orjson.loads(file.read())[colName]["row"]
     time2 = time.time()
-    print("Time to load file: " + str(time2 - time1))
+    print("Time to load " + filename + ": " + str(time2 - time1))
+    count = len(data)
+    chunkSize = int (count / (NUM_PROCESSES * 2))
     if (colName == "posts"):
         time4 = time.time()
-        for row in data:
-            words = extractWords(row, "Body")
-            if "Title" in row:
-                words += extractWords(row, "Title")
-            if "Tags" in row:
-                words += extractWords(row, "Tags")
-            wordSet = [x.lower() for x in set(words)]
-            row["terms"] = wordSet
-        print("Time2: " + str(time.time() - time4))
-    count = len(data)
-    numProc = 8
-    chunkSize = int (count / (numProc * 2))
-    pool = multiprocessing.Pool(processes=numProc) #spawn 8 processes
+        pool = multiprocessing.Pool(processes=NUM_PROCESSES)
+        data = list(pool.imap_unordered(buildTerms,data,chunksize=chunkSize))  #creates chunks of 1000 document id's
+        pool.close()
+        #print(data)
+        print("Time to add 'terms': " + str(time.time() - time4))
+    pool = multiprocessing.Pool(processes=NUM_PROCESSES) #spawn 8 processes
     bsonData = pool.imap_unordered(fastBSON,data,chunksize=chunkSize)  #creates chunks of 1000 document id's
     pool.close()
     bsonData = list(bsonData)
@@ -146,15 +164,17 @@ def createCollection(colName, filename, db):
     #     bsonData.append(fastBSON(item))
     #print(bsonData)
     time3 = time.time()
-    print("Time to load: " + str(time3-time2))
+    print("Time to convert '" + colName + "': " + str(time3-time2))
     if isinstance(data, list):
         collection.insert_many(bsonData)
     else:
         collection.insert_one(bsonData)
-    print("Time to insert: " + str(time.time() - time3))
+    print("Time to insert '" + colName + "': " + str(time.time() - time3))
+    if (colName == "posts"):
+        threading.Thread(target=indexTerms, args=(db,)).start()
+
+    print("DONE!!!!" + colName)
     return collection
-
-
 
 # delete existing db and create new one. Fill db with collections using json files
 def resetDB(client):
@@ -166,8 +186,22 @@ def resetDB(client):
     db = client[DATABASE_NAME]
 
     # build datbase using json files
-    for colName, filename in COLLECTION_NAMES.items():
-        createCollection(colName, filename, db)
+    
+    # multiprocessing approach - does not work becasue "AssertionError: daemonic processes are not allowed to have children"
+    # pool = multiprocessing.Pool(processes=8)
+    # pool.map(createCollection, ["votes", "tags"])
+    # pool.close()
+
+    # threading approach - slower than sequential (idk why)
+    # threading.Thread(target=createCollection, args=("posts",)).start()
+    # for colName in ["votes", "tags"]:
+    #     threading.Thread(target=createCollection, args=(colName,)).start()
+
+    # sequential approach - fastest
+    createCollection("posts")
+    for colName in ["votes", "tags"]:
+        createCollection(colName, db)
+
     endTime = time.time()
     timeTaken = endTime - startTime
     print("Sucessfully reset (" + str(timeTaken) + " seconds)")
@@ -188,17 +222,18 @@ if __name__ == "__main__":
 
         # TODO: remove this
         port = 12345
-
+        startTime = time.time()
         # connecting to server
         client = pymongo.MongoClient('localhost', port, document_class=RawBSONDocument)
         # TODO: uncomment this
         resetDB(client)
         db = client[DATABASE_NAME]
         #createIndexAggregate("posts", db)
-        #threading.Thread(target=indexText, args=(None,)).start()
-
+        #threading.Thread(target=indexText, args=(db,)).start()
+        wait = input(">> ")
+        print("TIME: " + str(time.time() - startTime))
         print(db)
         # TODO: create index
-        mainMenu(db)
+        #mainMenu(db)
         
 
