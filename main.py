@@ -124,12 +124,20 @@ def createCollection(colName, filename, db):
         data = orjson.loads(file.read())[colName]["row"]
     time2 = time.time()
     print("Time to load file: " + str(time2 - time1))
+    if (colName == "posts"):
+        time4 = time.time()
+        for row in data:
+            words = extractWords(row, "Body")
+            if "Title" in row:
+                words += extractWords(row, "Title")
+            if "Tags" in row:
+                words += extractWords(row, "Tags")
+            wordSet = [x.lower() for x in set(words)]
+            row["terms"] = wordSet
+        print("Time2: " + str(time.time() - time4))
     count = len(data)
     numProc = 8
-    multiple = 1
     chunkSize = int (count / (numProc * 2))
-    print(count)
-    print(chunkSize)
     pool = multiprocessing.Pool(processes=numProc) #spawn 8 processes
     bsonData = pool.imap_unordered(fastBSON,data,chunksize=chunkSize)  #creates chunks of 1000 document id's
     pool.close()
