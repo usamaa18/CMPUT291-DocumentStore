@@ -1,5 +1,6 @@
 from datetime import datetime
-
+from tabulate import tabulate
+import pprint
 # return string formatted datetime
 def formatDate(date):
     return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
@@ -81,8 +82,43 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-    # TODO  
-    pass
+
+    
+    while True:
+        #questionID=str(input("> questionID:"))
+        question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
+        if question == None:
+            print("The post selected is not a question")
+            
+        else:
+            ansCount= db.posts.count_documents({"ParentId": questionID})       
+            if ansCount == 0:
+                print("The question you've selected currently has no answers.")
+                break
+            else:
+                check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
+                if check_for_accepted == None:
+                    ans= db.posts.find({"ParentId": questionID})
+                    printAnswers(check_for_accepted,ans,questionID)
+                    selectAnswer(questionID,db)
+                    break
+                else:
+                    accepted_ansID= check_for_accepted["AcceptedAnswerId"]
+                    accepted_ans= db.posts.find_one({"Id": accepted_ansID})
+                    ans= db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]})
+                    printAnswers(accepted_ans,ans,questionID)
+                    selectAnswer(questionID,db)
+                    break
+          
+                
+              
+
+            
+
+
+
+    
+    
 
 
 # format search query results in a user-friendly way
@@ -90,10 +126,63 @@ def printQuestions(res):
     pass
 
 # format answer list in a user-friendly way
-def printAnswers(ans):
-    pass
+def printAnswers(accepted_ans,answers,questionID):
+    table= []
+    
+    
+    max_count = 80
+    column_names= ["Id","Body", "CreationDate", "Score"]
 
-# allows user to select a post from list. then shows details about post. then shows post-search menu
+    if accepted_ans != None:
+        subtable1=[]
+        accepted_ans_id= '☆ '+ accepted_ans["Id"]
+        body= accepted_ans["Body"]
+        cdate= accepted_ans["CreationDate"]
+        score= accepted_ans["Score"]
+
+        
+        if len(body) > max_count:
+            subtable1.extend(( accepted_ans_id, body[0:max_count -1 ],cdate,score))
+            table.append(subtable1)
+        else:
+            subtable1.extend((accepted_ans_id, body,cdate,score))
+            table.append(subtable1)
+            
+    for answer in answers:
+        subtable2=[]
+        ans_id= answer["Id"]
+        body= answer["Body"]
+        cdate= answer["CreationDate"]
+        score= answer["Score"]
+        if len(body) > max_count:
+            subtable2.extend((ans_id,body[0:max_count -1 ],cdate,score))
+            table.append(subtable2)
+        else:
+            subtable2.extend((ans_id,body,cdate,score))
+            table.append(subtable2)
+
+    print(tabulate(table, headers = column_names))
+    
+
+
+def selectAnswer(questionID, db):
+    maxCount= 80
+    while True:
+
+        print("Select a answer (AnswerID)")
+        answerID = input("> ").strip()
+        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
+        postAnswer = []
+       
+        
+        if selectAnswer != None:
+            pprint.pprint(selectAnswer)
+            break
+            
+        else:
+            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+
+
 def postSearchActions(res, userID, db):
 
     # get user input for questionID

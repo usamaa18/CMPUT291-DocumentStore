@@ -135,11 +135,15 @@ if __name__ == "__main__":
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         # TODO: uncomment this
-        # resetDB(client)
+        resetDB(client)
         db = client[DATABASE_NAME]
+        user_input=str(input("> questionID:"))
+        getAnswers(user_input, None, db)
+        
+        
 
         print(db)
         # TODO: create index
-        mainMenu(db)
+       # mainMenu(db)
         
 
