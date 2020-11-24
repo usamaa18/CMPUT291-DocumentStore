@@ -123,34 +123,29 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-
-    
-    while True:
-        #questionID=str(input("> questionID:"))
-        question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
-        if question == None:
-            print("The post selected is not a question")
-            
-        else:
-            ansCount= db.posts.count_documents({"ParentId": questionID})       
-            if ansCount == 0:
-                print("The question you've selected currently has no answers.")
-                break
-            else:
-                check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
-                if check_for_accepted == None:
-                    ans= db.posts.find({"ParentId": questionID})
-                    printAnswers(check_for_accepted,ans,questionID)
-                    selectAnswer(questionID,db)
-                    break
-                else:
-                    accepted_ansID= check_for_accepted["AcceptedAnswerId"]
-                    accepted_ans= db.posts.find_one({"Id": accepted_ansID})
-                    ans= db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]})
-                    printAnswers(accepted_ans,ans,questionID)
-                    selectAnswer(questionID,db)
-                    break
-        
+   
+   
+   question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
+   if question == None:
+      print("The post selected is not a question")
+   else:
+      ansCount= db.posts.count_documents({"ParentId": questionID})       
+      if ansCount == 0:
+         print("The question you've selected currently has no answers.")
+      else:
+         check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
+         if check_for_accepted == None:
+            ans= db.posts.find({"ParentId": questionID})
+            printAnswers(check_for_accepted,ans,questionID)
+            selectAnswer(questionID,db)
+         else:
+            accepted_ansID= check_for_accepted["AcceptedAnswerId"]
+            accepted_ans= db.posts.find_one({"Id": accepted_ansID})
+            ans= db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]})
+            printAnswers(accepted_ans,ans,questionID)
+            selectAnswer(questionID,db)
+                 
+      
 
 
    
@@ -160,11 +155,6 @@ def getAnswers(questionID, userID, db):
 
     
 
-        
-
-    # TODO  
-
-    pass
 
 
 # format search query results in a user-friendly way
@@ -212,7 +202,7 @@ def printAnswers(accepted_ans,answers,questionID):
 
 
 def selectAnswer(questionID, db):
-    maxCount= 80
+   
     while True:
 
         print("Select a answer (AnswerID)")
@@ -248,7 +238,8 @@ def postSearchActions(res, userID, db):
 
     # 2. List answers
     ans = getAnswers(questionID, userID, db)
-    printAnswers(ans)
+    #Hibaq: get answers prints the answers
+    #printAnswers(ans) 
     # get user input for answerID
     print("Select a answer (answerID)")
     answerID = input("> ")
