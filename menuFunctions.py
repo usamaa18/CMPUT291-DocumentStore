@@ -175,7 +175,7 @@ def printQuestions(res):
 # format answer list in a user-friendly way
 def printAnswers(accepted_ans,answers,questionID):
     table= []
-    
+    max_count = 80
     
     column_names= ["AnswerId","Body", "CreationDate", "Score"]
 
