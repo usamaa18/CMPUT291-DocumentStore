@@ -1,6 +1,8 @@
 from datetime import datetime
 import random, string
 from pymongo.errors import OperationFailure 
+from tabulate import tabulate
+import pprint
    
 
 # return string formatted datetime
@@ -121,7 +123,46 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-    #Hibaq's Job
+  
+
+    
+    while True:
+        #questionID=str(input("> questionID:"))
+        question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
+        if question == None:
+            print("The post selected is not a question")
+            
+        else:
+            ansCount= db.posts.count_documents({"ParentId": questionID})       
+            if ansCount == 0:
+                print("The question you've selected currently has no answers.")
+                break
+            else:
+                check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
+                if check_for_accepted == None:
+                    ans= db.posts.find({"ParentId": questionID})
+                    printAnswers(check_for_accepted,ans,questionID)
+                    selectAnswer(questionID,db)
+                    break
+                else:
+                    accepted_ansID= check_for_accepted["AcceptedAnswerId"]
+                    accepted_ans= db.posts.find_one({"Id": accepted_ansID})
+                    ans= db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]})
+                    printAnswers(accepted_ans,ans,questionID)
+                    selectAnswer(questionID,db)
+                    break
+        
+
+
+   
+        
+
+  
+
+    
+
+        
+
     # TODO  
 
     pass
@@ -129,11 +170,48 @@ def getAnswers(questionID, userID, db):
 
 # format search query results in a user-friendly way
 def printQuestions(res):
+   
     pass
 
 # format answer list in a user-friendly way
-def printAnswers(ans):
-    pass
+def printAnswers(accepted_ans,answers,questionID):
+    table= []
+    
+    
+    column_names= ["AnswerId","Body", "CreationDate", "Score"]
+
+    if accepted_ans != None:
+        subtable1=[]
+        accepted_ans_id= '☆ '+ accepted_ans["Id"]
+        body= accepted_ans["Body"]
+        cdate= accepted_ans["CreationDate"]
+        score= accepted_ans["Score"]
+
+        
+        if len(body) > max_count:
+            subtable1.extend(( accepted_ans_id, body[0:max_count -1 ],cdate,score))
+            table.append(subtable1)
+        else:
+            subtable1.extend((accepted_ans_id, body,cdate,score))
+            table.append(subtable1)
+            
+    for answer in answers:
+        subtable2=[]
+        ans_id= answer["Id"]
+        body= answer["Body"]
+        cdate= answer["CreationDate"]
+        score= answer["Score"]
+        if len(body) > max_count:
+            subtable2.extend((ans_id,body[0:max_count -1 ],cdate,score))
+            table.append(subtable2)
+        else:
+            subtable2.extend((ans_id,body,cdate,score))
+            table.append(subtable2)
+
+    print(tabulate(table, headers = column_names))
+    
+
+
 
 # allows user to select a post from list. then shows details about post. then shows post-search menu
 def postSearchActions(res, userID, db):
@@ -176,3 +254,20 @@ def postSearchActions(res, userID, db):
         print("Successfully voted")
     else:
         print("Error: " + userID + " already voted for this post")
+ 
+def selectAnswer(questionID, db):
+    while True:
+
+        print("Select a post (AnswerID)")
+        answerID = input("> ").strip()
+        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
+        postAnswer = []
+       
+        
+        if selectAnswer != None:
+            pprint.pprint(selectAnswer)
+            break
+            
+        else:
+            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+
