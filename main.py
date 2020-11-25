@@ -63,9 +63,14 @@ def mainMenu(db):
                 keywords = input("> ").strip().lower()
             keywords = keywords.split()
             res = searchQuestions(keywords, userID, db)
-            print(res)
-            printQuestions(res)
-            postSearchActions(res, userID, db)
+            #
+            if res:
+                displayPosts(res,"1")
+                postSearchActions(res, userID, db)
+            else:
+                print("No matching posts")
+            needPrintMenu = True
+
         elif (val == 0):
             break
         else:

@@ -10,6 +10,7 @@ def formatDate(date):
 
 # generate a unique ID for the collection
 def generateID(collection):
+    #Haven't tested this yet, I hope its not too slow
     max_Id= collection.find().sort({"Id":-1}).limit(1)
     Id= max_Id + 1
 
@@ -93,15 +94,32 @@ def votePost(postID, userID, db):
     return 1
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
+<<<<<<< HEAD
+=======
+    postType= '1'
+    count = 0
+>>>>>>> 6208ac45226d6a5320eb2d1aa07759fa263404a7
     keywordsLarge = list()
     keywordsSmall = list()
+    res= None
     for word in keywords:
         if len(word) >= 3:
             keywordsLarge.append(word)
         else:
             keywordsSmall.append(word)
+<<<<<<< HEAD
 
     projection = ["Id"]
+=======
+    print(keywordsLarge)
+    count += db.posts.count_documents({"terms": {"$in": keywordsLarge}})
+    print(count)
+    if count != 0:
+        res = list(db.posts.find({"terms": {"$in": keywordsLarge}}))
+
+
+        
+>>>>>>> 6208ac45226d6a5320eb2d1aa07759fa263404a7
 
     query = {"terms": {"$in": keywordsLarge}}
     if (len(keywordsSmall) > 0):
@@ -114,12 +132,18 @@ def searchQuestions(keywords, userID, db):
             }
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
+<<<<<<< HEAD
 
     return list (db.posts.find(query, projection))
+=======
+            print(count)
+
+    return res
+>>>>>>> 6208ac45226d6a5320eb2d1aa07759fa263404a7
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-    #question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
+    postType= '2'
     ansCount= db.posts.count_documents({"ParentId": questionID})       
     if ansCount == 0:
         print("The question you've selected currently has no answers.")
@@ -127,21 +151,18 @@ def getAnswers(questionID, userID, db):
         check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
         if check_for_accepted == None:
             ans= list(db.posts.find({"ParentId": questionID}))
-            #printAnswers(check_for_accepted,ans,questionID)
-            displayPosts(ans)
+            
+            displayPosts(ans,postType)
         else:
             accepted_ansID= check_for_accepted["AcceptedAnswerId"]
             accepted_ans= db.posts.find_one({"Id": accepted_ansID})
             ans= [accepted_ans] + list(db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]}))
-            #print(ans)
-            #print(accepted_ans)
-            #.insert(0,accepted_ans)
-            displayPosts(ans)
+            displayPosts(ans,postType)
 
                 
                 
 
-def displayPosts(res):
+def displayPosts(res,PostType):
     currPage = 1
     maxPerPage = 10
     lenDocuments= len(res)
@@ -153,10 +174,15 @@ def displayPosts(res):
         currMaxIndex = currPage * maxPerPage
         currMinIndex = currMaxIndex - maxPerPage
         if (currMaxIndex > lenDocuments):
+
             currMaxIndex = lenDocuments
         
         if updatePage:
-            printAnswers(res[currMinIndex:currMaxIndex])
+            if PostType == '1':
+                printQuestions(res[currMinIndex:currMaxIndex])
+            else:
+                printAnswers(res[currMinIndex:currMaxIndex])
+            
             print("Page " + str(currPage) + " of " + str(numPages))
             updatePage = False
         if (currPage == 1):
@@ -175,6 +201,7 @@ def displayPosts(res):
             currPage += 1
             updatePage = True
         elif user_input == 's':
+            updatePage = False
             break
         else:
             print("Invalid selection")
@@ -184,9 +211,28 @@ def displayPosts(res):
 
 
 # format search query results in a user-friendly way
-def printQuestions(res):
-
-    pass
+def printQuestions(posts):
+    #printing posts using tabulate
+    postTable =[]
+    questionColumns = ["Id", "Title", "CreationDate", "Score", "AnswerCount" ]
+    answerColumns= ["Id", "Title", "CreationDate", "Score"]
+    table= []
+    filler= "N/A"
+    for post in posts:
+        subtable=[]
+        Id= post["Id"]
+        cdate= post["CreationDate"]
+        score= post["Score"]
+        if post["PostTypeId"] == "1":
+            title= post["Title"]
+            answerCount= post["AnswerCount"]
+            subtable.extend((Id,title,cdate,score,answerCount))
+            table.append(subtable)
+        else:
+            subtable.extend((Id,filler,cdate,score,filler))
+            table.append(subtable)
+       
+    print(tabulate(table, headers = questionColumns))
         
         
         
@@ -198,26 +244,11 @@ def printQuestions(res):
 
 # format answer list in a user-friendly way
 def printAnswers(answers):
+    #printing answers using tabulate
     table= []
     max_count = 80
     
     column_names= ["AnswerId","Body", "CreationDate", "Score"]
-    
-
-    #if accepted_ans != None:
-        #subtable1=[]
-        #accepted_ans_id= '☆ '+ accepted_ans["Id"]
-        #body= accepted_ans["Body"]
-        #cdate= accepted_ans["CreationDate"]
-        #score= accepted_ans["Score"]
-
-        
-       ## if len(body) > max_count:
-            #subtable1.extend(( accepted_ans_id, body[0:max_count -1 ],cdate,score))
-            #table.append(subtable1)
-       # else:
-            #subtable1.extend((accepted_ans_id, body,cdate,score))
-           # table.append(subtable1)
             
     for answer in answers:
         subtable2=[]
@@ -239,80 +270,107 @@ def printAnswers(answers):
             table.append(subtable2)
 
     print(tabulate(table, headers = column_names))
-    
-def selectQuestion(questionID, db,res):
-
+#prints selected question in pretty dictionary style
+#returns None if the user input doesnt match id in questions from question search
+def selectQuestion(db,res):
+    #generating this list is a bit slow
+    #takes a few seconds
+    #list of all question id's in keyword search
     qid_list = []
     for post in res:
-        qid_list.append(post["Id"])
-    
-    while True:
-        question = db.posts.find_one({"$and"[{"Id":{"$in": qid_list}}, { "PostTypeId": 1}]})
-        if question != None:
-            for keys in selectAnswer.keys(): 
-                print ('{', keys, ":" , selectAnswer[keys] , '}' )
-            break
-        else:
-            print("The questionID given does not correspond to any posts listed in the search results.")
-            print("Please try entering a valid questionID, again.")
-
-
-
-
-
-def selectAnswer(questionID, db):
-
-    while True:
-
-
-        print("Select a answer (AnswerID)")
-        answerID = input("> ").strip()
-        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
-       
-        
-        if selectAnswer != None:
-            for keys in selectAnswer.keys(): 
-                print ('{', keys, ":" , selectAnswer[keys] , '}' )
-            break
-           
-
-
+        if post["PostTypeId"] == "1":
+             qid_list.append(post["Id"])
+    print("Select a question (ID)")
+    questionID = input("> ").strip()
+    question = db.posts.find_one({"Id":questionID})
+    if question != None and  question["Id"] in qid_list:
+        for keys in question.keys(): 
+            print ('{', keys, ":" , question[keys] , '}' )
             
-        else:
-            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+    else:
+        print("The questionID given does not correspond to any posts listed in the search results.")
+        return None
+    
+    return question["Id"]  
+
+
+
+
+#prints selected answer in pretty dictionary form
+# returns None if user inputs a value that doesn't correspond to an answer
+#needs more stringent error correction imo
+def selectAnswer(questionID, db):
+    print("Select a answer (AnswerID)")
+    answerID = input("> ").strip()
+    selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
+    if selectAnswer != None:
+        for keys in selectAnswer.keys(): 
+            print ('{', keys, ":" , selectAnswer[keys] , '}' )
+    else:
+        print("The answerID selected doesn't correspond with the selected question. Please try again.")
+        return None
+    return answerID
 
 
 def postSearchActions(res, userID, db):
-
-    # get user input for questionID
-    print("Select a question (questionID)")
-    questionID = input("> ")
+    
+    
+    ERROR_MESSAGE = "Invalid option. Try again..."
+    questionID= selectQuestion(db,res)
+    if questionID == None:
+        return
 
     # get user input for post-search action
 
     # 1. post answer
     # get user input for body
-    print("Enter body:")
-    body = input("> ").strip()
-    if (postAnswer(body, questionID, userID, db)):
-        print("Successfully posted")
+    print( '''
+               USER ACTIONS
+            1. Post a answer
+            2. Print list the selected questions answers."
+            ''')
+    try:
+         val = int(input("> "))
+    except ValueError:
+         print(ERROR_MESSAGE)
+    if (val == 1):
+         print("Enter body:")
+         body = input("> ").strip()
+         if (postAnswer(body, questionID, userID, db)):
+             print("Successfully posted")
+    elif (val == 2 ):
+         getAnswers(questionID, userID, db)
+         ans= selectAnswer(questionID, db)
+        if ans == None:
+        else:
+            #wantToVote = True
+            #if (wantToVote):
+            # if (votePost(answerID, userID, db)):
+            # print("Successfully voted")
+            break
     else:
-        print("Error: Answer not posted")
+        print(ERROR_MESSAGE)
+    #print("Enter body:")
+    #body = input("> ").strip()
+    #if (postAnswer(body, questionID, userID, db)):
+       # print("Successfully posted")
+   # else:
+       # print("Error: Answer not posted")
 
     # 2. List answers
-    ans = getAnswers(questionID, userID, db)
-    printAnswers(ans)
+    #ans = getAnswers(questionID, userID, db)
+    #printAnswers(ans)
     # get user input for answerID
-    print("Select a answer (answerID)")
-    answerID = input("> ")
+    #print("Select a answer (answerID)")
+    #answerID = input("> ")
 
     # display details
 
     # ask if they want to vote for the answer
-    wantToVote = True
-    if (wantToVote):
-        if (votePost(answerID, userID, db)):
-            print("Successfully voted")
+    #wantToVote = True
+    #if (wantToVote):
+      #  if (votePost(answerID, userID, db)):
+          #  print("Successfully voted")
 
 
   
