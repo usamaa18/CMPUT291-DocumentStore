@@ -64,7 +64,7 @@ def mainMenu(db):
             keywords = keywords.split()
             res = searchQuestions(keywords, userID, db)
             if len(res) > 0:
-                displayPosts(res,"1")
+                displayPosts(res,"1", db)
                 postSearchActions(res, userID, db)
             else:
                 print("No matching posts")

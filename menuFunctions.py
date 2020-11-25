@@ -3,6 +3,7 @@ import random, string
 from pymongo.errors import OperationFailure 
 from tabulate import tabulate
 import math
+from pprint import pprint
 # return string formatted datetime
 def formatDate(date):
 
@@ -103,26 +104,25 @@ def searchQuestions(keywords, userID, db):
         else:
             keywordsSmall.append(word)
 
-    projection = ["Id"]
     postTypeID = "1"
 
-    query = {
-        {"terms": {"$in": keywordsLarge}},
-        {"PostTypeId": postTypeID}
+    filter = {
+        "terms": {"$in": keywordsLarge},
+        "PostTypeId": postTypeID
     }
     if (len(keywordsSmall) > 0):
         try:
-            query = { 
-                {"$or": [
+            filter = { 
+                "$or": [
                     {"terms": {"$in": keywordsLarge}},
                     { "$text": { "$search": " ".join(keywordsSmall) }}
-                ]},
-                {"PostTypeId": postTypeID}
+                ],
+                "PostTypeId": postTypeID
             }
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
 
-    return list (db.posts.find(query, projection))
+    return db.posts.distinct("_id", filter)
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
@@ -147,10 +147,10 @@ def getAnswers(questionID, userID, db):
                 
                 
 
-def displayPosts(res,PostType):
+def displayPosts(postIDs,PostType, db):
     currPage = 1
     maxPerPage = 10
-    lenDocuments= len(res)
+    lenDocuments= len(postIDs)
     numPages = math.ceil(float(lenDocuments)/ maxPerPage)
     updatePage = True
    
@@ -163,10 +163,11 @@ def displayPosts(res,PostType):
             currMaxIndex = lenDocuments
         
         if updatePage:
+            posts = db.posts.find({"_id": {"$in": postIDs[currMinIndex:currMaxIndex]}})
             if PostType == '1':
-                printQuestions(res[currMinIndex:currMaxIndex])
+                printQuestions(posts)
             else:
-                printAnswers(res[currMinIndex:currMaxIndex])
+                printAnswers(posts)
             
             print("Page " + str(currPage) + " of " + str(numPages))
             updatePage = False
@@ -257,24 +258,20 @@ def printAnswers(answers):
     print(tabulate(table, headers = column_names))
 #prints selected question in pretty dictionary style
 #returns None if the user input doesnt match id in questions from question search
-def selectQuestion(db,res):
+def selectQuestion(postIDs, db):
     #generating this list is a bit slow
     #takes a few seconds
     #list of all question id's in keyword search
-    qid_list = []
-    for post in res:
-        if post["PostTypeId"] == "1":
-             qid_list.append(post["Id"])
+    qid_list = db.posts.distinct("Id", {"_id": {"$in": postIDs}})
     print("Select a question (ID)")
     questionID = input("> ").strip()
-    question = db.posts.find_one({"Id":questionID})
-    if question != None and  question["Id"] in qid_list:
-        for keys in question.keys(): 
-            print ('{', keys, ":" , question[keys] , '}' )
-            
+    #question = db.posts.find_one({"Id":questionID})
+    question = None
+    if questionID in qid_list:
+        question = db.posts.find_one({"Id": questionID})
+        pprint(question)          
     else:
         print("The questionID given does not correspond to any posts listed in the search results.")
-        return None
     
     return question["Id"]  
 
@@ -301,9 +298,10 @@ def postSearchActions(res, userID, db):
     
     
     ERROR_MESSAGE = "Invalid option. Try again..."
-    questionID= selectQuestion(db,res)
+    questionID= selectQuestion(res, db)
     if questionID == None:
         return
+    
 
     # get user input for post-search action
 
