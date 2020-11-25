@@ -5,6 +5,7 @@ from coreFunctions import *
                 
 ERROR_MESSAGE = "Invalid option. Try again..."
 
+# users prompts to search for a question
 def searchQuestionsMenu(userID, db):
     print("Enter keywords to search:")
     keywords = input("> ").strip().lower()
@@ -18,6 +19,7 @@ def searchQuestionsMenu(userID, db):
     else:
         print("No matching posts")
 
+# user prompts to post a new question
 def postQuestionMenu(userID, db):
     print("Enter title:")
     title = input("> ").strip()
@@ -29,8 +31,10 @@ def postQuestionMenu(userID, db):
         body = input("> ").strip()
     print("Enter tags (optional):")
     tags = input("> ").strip().lower().split()
-    postQuestion(title, body, tags, userID, db)                
+    if postQuestion(title, body, tags, userID, db):
+        print("Successfully posted!")               
 
+# generic page-scrolling handler for both question and answer type posts
 def displayPosts(postIDs,PostType, db):
     currPage = 1
     maxPerPage = 10
@@ -40,12 +44,13 @@ def displayPosts(postIDs,PostType, db):
    
 
     while True:
+        # these values are used to index sortedPID to display only 'maxPerPage' elements at a time
         currMaxIndex = currPage * maxPerPage
         currMinIndex = currMaxIndex - maxPerPage
         if (currMaxIndex > lenDocuments):
-
             currMaxIndex = lenDocuments
         
+        # only need to update if page was changed
         if updatePage:
             posts = db.posts.find({"_id": {"$in": postIDs[currMinIndex:currMaxIndex]}})
             if PostType == '1':
@@ -55,6 +60,8 @@ def displayPosts(postIDs,PostType, db):
             
             print("Page " + str(currPage) + " of " + str(numPages))
             updatePage = False
+
+        # condition checking to ensure user cannot go out of bound of pages
         if (numPages == 1):
             inputPrompt = "Select post (s): "
         elif (currPage == 1):
@@ -64,7 +71,7 @@ def displayPosts(postIDs,PostType, db):
         else:
             inputPrompt = "Go to previous page (p) or next page (n), or select post (s): "
          
-        
+        # handle user input
         user_input = input(inputPrompt).strip().lower()
         if user_input == 'p' and currPage > 1:
             currPage -= 1
@@ -111,6 +118,7 @@ def printAnswers(answers):
             
     for answer in answers:
         subtable2=[]
+        # 'isAcceptedAns' is a attribute added by the getAnswers() func
         if "isAcceptedAns" in answer.keys():
             ans_id= '☆ '+ answer["Id"]
         
@@ -131,16 +139,16 @@ def printAnswers(answers):
     print(tabulate(table, headers = column_names))
 
 
-#prints selected question in pretty dictionary style
-#returns None if the user input doesnt match id in questions from question search
+# prints selected question in pretty dictionary style
+# returns None if the user input doesnt match id in questions from question search
 def selectQuestion(postIDs, db):
-    #generating this list is a bit slow
-    #takes a few seconds
-    #list of all question id's in keyword search
+    # generating this list is a bit slow
+    # takes a few seconds
+    # list of all question id's in keyword search
     qid_list = db.posts.distinct("Id", {"_id": {"$in": postIDs}})
     print("Select a question (ID)")
     questionID = input("> ").strip()
-    #question = db.posts.find_one({"Id":questionID})
+    # question = db.posts.find_one({"Id":questionID})
     question = None
     if questionID in qid_list:
         question = db.posts.find_one({"Id": questionID})
@@ -153,9 +161,9 @@ def selectQuestion(postIDs, db):
 
 
 
-#prints selected answer in pretty dictionary form
+# prints selected answer in pretty dictionary form
 # returns None if user inputs a value that doesn't correspond to an answer
-#needs more stringent error correction imo
+# needs more stringent error correction imo
 def selectAnswer(questionID, db):
     print("Select a answer (AnswerID)")
     answerID = input("> ").strip()
@@ -168,20 +176,15 @@ def selectAnswer(questionID, db):
         return None
     return answerID
 
-
+# menu for user-actions after choosing to select a question from search results
 def postSearchActions(res, userID, db):
     
-    
+    # prompt user to select a question
     question = selectQuestion(res, db)
     if question == None:
         return
 
     questionID = question["Id"]
-
-    # get user input for post-search action
-
-    # 1. post answer
-    # get user input for body
 
     needPrintMenu = True
     while True:
@@ -199,7 +202,8 @@ def postSearchActions(res, userID, db):
         except ValueError:
             print(ERROR_MESSAGE)
             continue
-
+        
+        # 1. post answer
         if (val == 1):
             print("Enter body:")
             body = input("> ").strip()
@@ -210,6 +214,8 @@ def postSearchActions(res, userID, db):
             else:
                 print("Error: Answer not posted")
             needPrintMenu = True
+
+        # 2. list answers
         elif (val == 2 ):
         
             ans = getAnswers(questionID, db)
@@ -217,13 +223,12 @@ def postSearchActions(res, userID, db):
                 print("The question you've selected currently has no answers.")
                 return
 
+            # this process is very inefficient, but it is what it is
             ans = [row["_id"] for row in ans]
             displayPosts(ans, "2", db)
             answerID = selectAnswer(questionID, db)
-            if answerID == None:
-                pass
-            else:
-                #ask if they want to vote for the answer
+
+            if answerID !=None:
                 print("Do you wish to vote for this answer? (y/n)")
                 val = input("> ").lower().strip()
                 while val not in ['y', 'n']:
@@ -234,25 +239,17 @@ def postSearchActions(res, userID, db):
                         print("Successfully voted")
                     else:
                         print("You have already voted this post!")
+
             needPrintMenu = True
+
+        # vote for question    
         elif (val == 3):
             if (votePost(questionID, userID, db)):
                 print("Successfully voted")
             else:
                 print("You have already voted this post!")
+        # exit        
         elif (val == 0):
             break
         else:
             print(ERROR_MESSAGE)
-
-    
-
-
-
-  
-
-
-            
-
-
-

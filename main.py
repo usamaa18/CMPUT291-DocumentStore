@@ -5,8 +5,12 @@ import threading
 import multiprocessing
 
 import pymongo
+
+# orjson is used to convert json file to dict
 import orjson
+# bsonjs boasts faster JSON<->BSON encoding and decoding times than those built-in pymongo
 import bsonjs
+
 from bson.raw_bson import RawBSONDocument
 
 from userReport import *
@@ -23,7 +27,9 @@ COLLECTION_NAMES = {
 NUM_PROCESSES = 8
 PROCESS_MULTIPLIER = 2
 
+# display the main menu
 def mainMenu(db):
+    # userID is optional
     userID = input("User ID (optional): ").strip().lower()
     if userID != '':
         printUserReport(userID, db)
@@ -55,30 +61,38 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
 
+# generateID() should be called when the program initializes
+# because it takes 2-3 seconds on large collections (~1.5 mil documents)
 def initGenerateID(db):
     for colName in COLLECTION_NAMES.keys():
         generateID(db[colName])
 
+# creates an index of 'terms'
 def indexTerms(db):
     startTime = time.time()
     print ("Beginning 'terms' indexing...")
     db["posts"].create_index("terms", name = "termsIndexRegular")
     print("Successfully created 'terms' index (" + str(time.time()-startTime) + " sec)")
 
+# creates an text index of 'Title', 'Body', 'Tags' fields
+# only exists to search of keywords less than 2 chars in length
 def indexText(db):
     startTime = time.time()
     print ("Beginning text indexing... (background)")
     db["posts"].create_index([("Title", pymongo.TEXT), ("Body", pymongo.TEXT), ("Tags", pymongo.TEXT)], name = "textIndex")
     print("Successfully created text index (" + str(time.time()-startTime) + " sec)")
-        
+
+# encode a python dict -> JSON -> BSON -> RawBSONDocument
 def fastBSON(item):
     return RawBSONDocument(bsonjs.loads(orjson.dumps(item)))
         
+# find words where len(word) >= 3 
 def extractWords(row, keyName):
     text = row[keyName].lower()
     words = re.findall("[\w']{3,}", text)
     return words    
 
+# creates a set of words >= 3 chars that occur in the 'Body', 'Title' and 'Tags' field of any post
 def buildTerms(row):
     words = extractWords(row, "Body")
     if "Title" in row:
@@ -101,17 +115,19 @@ def createCollection(colName, db):
 
     time2 = time.time()
     print("Time to load " + filename + ": " + str(time2 - time1))
-
+    # chunksize determine how many chunks the list should be divided into for multiprocessing
     chunkSize = int (len(data) / (NUM_PROCESSES * PROCESS_MULTIPLIER))
     if (colName == "posts"):
         time4 = time.time()
 
+        # use multiple processing cores to add 'terms' field in every post
         pool = multiprocessing.Pool(processes=NUM_PROCESSES)
         data = list(pool.imap_unordered(buildTerms,data,chunksize=chunkSize))
         pool.close()
 
         print("Time to add 'terms': " + str(time.time() - time4))
     
+    # encode this to RawBSONDocument to feed into database faster
     pool = multiprocessing.Pool(processes=NUM_PROCESSES)
     bsonData = list(pool.imap_unordered(fastBSON,data,chunksize=chunkSize))
     pool.close()
@@ -133,6 +149,7 @@ def resetDB(ip, port):
     client = pymongo.MongoClient(ip, port, document_class=RawBSONDocument)
     print("Resetting " + DATABASE_NAME + " database...")
     startTime = time.time()
+
     # deleting pre-existing db
     if DATABASE_NAME in client.list_database_names():
         client.drop_database(DATABASE_NAME)
@@ -150,7 +167,7 @@ def resetDB(ip, port):
     # for colName in ["votes", "tags"]:
     #     threading.Thread(target=createCollection, args=(colName,)).start()
 
-    # sequential approach - fastest
+    # sequentially create collections - fastest approach
     createCollection("posts", db)
     threadIndexTerms = threading.Thread(target=indexTerms, args=(db,))
     threadIndexTerms.start()

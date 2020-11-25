@@ -18,6 +18,7 @@ def generateID(collection):
     # find maxID from database for a given collection
     # only runs when the func is called for the first time for that collection
     if colName not in generateID.maxID.keys():
+        # use aggregate to bypass 16mb limit on distinct()
         stringIDs = collection.aggregate([{"$project": {"_id": False, "Id": True}}])
         intIDs = [int(ID["Id"]) for ID in stringIDs]
         generateID.maxID[colName] = max(intIDs)
@@ -32,9 +33,12 @@ def generateID(collection):
 # increment tag count by 1, or create new tag with unique id
 def updateTag(tag, db):
     query = { "TagName": tag }
+    # if tag already exists in 'tags' collection, just increment
     if (db.tags.find_one(query) != None):
         update = { "$inc": { "Count": 1 } }
         db.tags.update_one(query, update)
+
+    # otherwise, create new document in 'tags'
     else:
         newTag = {
             "Id": generateID(db.tags),
@@ -63,11 +67,15 @@ def postQuestion(title, body, tags, userID, db):
         "FavoriteCount": 0,
         "ContentLicense": "CC BY-SA 2.5"
     }
+    # tags are optional
     if (len(tags) > 0):
+        # wrap tags in '<' and ">"
         tagString = "<" + "><".join(tags) + ">"
         post["Tags"] = tagString
+        # update 'tags' collection
         for tag in tags:
             updateTag(tags, db)
+    # userID optional
     if (userID != ''):
         post["OwnerUserId"] = userID
     db.posts.insert_one(post)
@@ -89,6 +97,7 @@ def postAnswer(body, questionID, userID, db):
         "CommentCount": 0,
         "ContentLicense": "CC BY-SA 2.5"
     }
+    # userID optional
     if (userID != ''):
         post["OwnerUserId"] = userID
     db.posts.insert_one(post)
@@ -104,6 +113,7 @@ def votePost(postID, userID, db):
     }
     if (userID != ''):
         vote["UserId"] = userID
+        # same user cannot vote for the same post twice
         if (db.votes.find_one({"UserId": userID, "PostId": postID})):
             return 0
     db.votes.insert_one(vote)
@@ -112,6 +122,8 @@ def votePost(postID, userID, db):
 
 # searches posts for keywords and list of ObjectIds (_id)
 def searchQuestions(keywords, db):
+
+    # we create two seperate list of small and large words to make the query more efficient
     keywordsLarge = list()
     keywordsSmall = list()
     for word in keywords:
@@ -126,6 +138,7 @@ def searchQuestions(keywords, db):
         "terms": {"$in": keywordsLarge},
         "PostTypeId": postTypeID
     }
+    # only do a text query if small words exist
     if (len(keywordsSmall) > 0):
         try:
             filter = { 
@@ -135,6 +148,7 @@ def searchQuestions(keywords, db):
                 ],
                 "PostTypeId": postTypeID
             }
+        # text query fails if text index is not fully built
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
 
@@ -149,13 +163,16 @@ def getAnswers(questionID, db):
         return []
     else:
         ans = []
+        # check if the question even has an accepted ans
         check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
         if check_for_accepted == None:
             ans= list(db.posts.find({"ParentId": questionID}))
             
+        # if accepted ans exists, find it, mark it and put in the front of the list
         else:
             accepted_ansID= check_for_accepted["AcceptedAnswerId"]
             accepted_ans= db.posts.find_one({"Id": accepted_ansID})
+            # 'isAcceptedAns' key is used so that the printing function knows to mark it as accepted
             accepted_ans["isAcceptedAns"] = True
             ans= [accepted_ans] + list(db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]}))
         
