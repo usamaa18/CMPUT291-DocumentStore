@@ -93,7 +93,6 @@ def votePost(postID, userID, db):
     return 1
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
-    count = 0
     keywordsLarge = list()
     keywordsSmall = list()
     for word in keywords:
@@ -101,28 +100,22 @@ def searchQuestions(keywords, userID, db):
             keywordsLarge.append(word)
         else:
             keywordsSmall.append(word)
-    print(keywordsLarge)
-    count += db.posts.count_documents({"terms": {"$in": keywordsLarge}})
-    print(count)
-    if count != 0:
-        res = list(db.posts.find({"terms": {"$in": keywordsLarge}}))
-        
-       
-        
 
+    projection = ["Id"]
 
-
-
-    
-
+    query = {"terms": {"$in": keywordsLarge}}
     if (len(keywordsSmall) > 0):
         try:
-            count += db.posts.count_documents({ "$text": { "$search": " ".join(keywords) } })
+            query = { 
+                "$or": [
+                    {"terms": {"$in": keywordsLarge}},
+                    { "$text": { "$search": " ".join(keywordsSmall) }}
+                ]
+            }
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
-    print(count)
-    # TODO 
-    pass
+
+    return list (db.posts.find(query, projection))
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):

@@ -58,8 +58,12 @@ def mainMenu(db):
             needPrintMenu = True
         elif (val == 2):
             print("Enter keywords to search:")
-            keywords = input("> ").strip().lower().split()
+            keywords = input("> ").strip().lower()
+            while keywords == '':
+                keywords = input("> ").strip().lower()
+            keywords = keywords.split()
             res = searchQuestions(keywords, userID, db)
+            print(res)
             printQuestions(res)
             postSearchActions(res, userID, db)
         elif (val == 0):
@@ -137,7 +141,8 @@ def createCollection(colName, db):
     return collection
 
 # delete existing db and create new one. Fill db with collections using json files
-def resetDB(client):
+def resetDB(ip, port):
+    client = pymongo.MongoClient(ip, port, document_class=RawBSONDocument)
     print("Resetting " + DATABASE_NAME + " database...")
     startTime = time.time()
     # deleting pre-existing db
@@ -184,17 +189,19 @@ if __name__ == "__main__":
         # TODO: remove this
         #port = 12345
         startTime = time.time()
-        # connecting to server
-        client = pymongo.MongoClient('localhost', port, document_class=RawBSONDocument)
+
         # TODO: uncomment this
-        resetDB(client)
+        #resetDB('localhost', port)
+        
+        # connecting to server
+        client = pymongo.MongoClient('localhost', port)
         db = client[DATABASE_NAME]
-        #createIndexAggregate("posts", db)
+        #createIndexAggregate("posts", db)s
         #threading.Thread(target=indexText, args=(db,)).start()
         print("TIME: " + str(time.time() - startTime))
         print(db)
         # TODO: create index
-        #mainMenu(db)
-        getAnswers("1",None, db)
+        mainMenu(db)
+        #getAnswers("1",None, db)
         
 
