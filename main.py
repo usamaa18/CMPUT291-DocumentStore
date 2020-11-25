@@ -193,13 +193,13 @@ if __name__ == "__main__":
 
         startTime = time.time()
 
-        #resetDB('localhost', port)
+        resetDB('localhost', port)
         
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         db = client[DATABASE_NAME]
         print("PHASE 1 TIME: " + str(time.time() - startTime))
-        #threading.Thread(target=indexText, args=(db,)).start()
+        threading.Thread(target=indexText, args=(db,)).start()
         threading.Thread(target=initGenerateID, args=(db,)).start()
 
         mainMenu(db)
