@@ -62,9 +62,9 @@ def mainMenu(db):
             while keywords == '':
                 keywords = input("> ").strip().lower()
             keywords = keywords.split()
-            res = searchQuestions(keywords, userID, db)
+            res = searchQuestions(keywords, db)
             if len(res) > 0:
-                displayPosts(res,"1", db)
+                displayPosts(res, "1", db)
                 postSearchActions(res, userID, db)
             else:
                 print("No matching posts")
@@ -195,13 +195,12 @@ if __name__ == "__main__":
         startTime = time.time()
 
         # TODO: uncomment this
-        #resetDB('localhost', port)
+        resetDB('localhost', port)
         
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         db = client[DATABASE_NAME]
-        #createIndexAggregate("posts", db)s
-        #threading.Thread(target=indexText, args=(db,)).start()
+        threading.Thread(target=indexText, args=(db,)).start()
         print("TIME: " + str(time.time() - startTime))
         print(db)
         # TODO: create index

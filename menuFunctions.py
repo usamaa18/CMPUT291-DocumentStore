@@ -1,9 +1,11 @@
 from datetime import datetime
+from os import name
 import random, string
 from pymongo.errors import OperationFailure 
 from tabulate import tabulate
 import math
 from pprint import pprint
+import time
 # return string formatted datetime
 def formatDate(date):
 
@@ -11,11 +13,24 @@ def formatDate(date):
 
 # generate a unique ID for the collection
 def generateID(collection):
-    #Haven't tested this yet, I hope its not too slow
-    max_Id= collection.find().sort({"Id":-1}).limit(1)
-    Id= max_Id + 1
-
-    return Id
+    #startTime = time.time()
+    colName = collection.name
+    # initialize maxID as a dict
+    # only runs when the function is called for the first time globally
+    if not hasattr(generateID, "maxID"):
+        generateID.maxID = dict()
+    
+    # find maxID from database for a given collection
+    # only runs when the func is called for the first time for that collection
+    if colName not in generateID.maxID.keys():
+        stringIDs = collection.distinct("Id")
+        intIDs = [int(ID) for ID in stringIDs]
+        generateID.maxID[colName] = max(intIDs)
+    
+    # increment maxID for that collection
+    generateID.maxID[colName] += 1
+    #print("New ID: " + str(generateID.maxID[colName]) + " (" + str(time.time()-startTime) + " sec)")
+    return str(generateID.maxID[colName])
 
 
 # increment tag count by 1, or create new tag with unique id
@@ -35,6 +50,8 @@ def updateTag(tag, db):
 
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, db):
+    if (title == '' or body == ''):
+        return False
     newId = generateID(db.posts)
     datatimeString = formatDate(datetime.today())
     post = {
@@ -57,11 +74,13 @@ def postQuestion(title, body, tags, userID, db):
             updateTag(tags, db)
     if (userID != ''):
         post["OwnerUserId"] = userID
-    id = db.posts.insert_one(post)
-    print(id)
+    db.posts.insert_one(post)
+    return True
 
 # posts an answer to a question. Return 1 if successful, 0 otherwise
 def postAnswer(body, questionID, userID, db):
+    if (body == ''):
+        return False
     newId = generateID(db.posts)
     datatimeString = formatDate(datetime.today())
     post = {
@@ -77,6 +96,7 @@ def postAnswer(body, questionID, userID, db):
     if (userID != ''):
         post["OwnerUserId"] = userID
     db.posts.insert_one(post)
+    return True
 
 # casts a vote on postID on behalf of userID. Returns 1 if successful, 0 if not
 def votePost(postID, userID, db):
@@ -93,11 +113,11 @@ def votePost(postID, userID, db):
     db.votes.insert_one(vote)
     db.posts.update_one( {"Id": postID}, {"$inc": {"Score": 1} } )
     return 1
-# searches posts for keywords and return cursor object
-def searchQuestions(keywords, userID, db):
+
+# searches posts for keywords and list of ObjectIds (_id)
+def searchQuestions(keywords, db):
     keywordsLarge = list()
     keywordsSmall = list()
-    res= None
     for word in keywords:
         if len(word) >= 3:
             keywordsLarge.append(word)
@@ -125,7 +145,7 @@ def searchQuestions(keywords, userID, db):
     return db.posts.distinct("_id", filter)
 
 # lists all answers to a given question
-def getAnswers(questionID, userID, db):
+def getAnswers(questionID, db):
     postType= '2'
     ansCount= db.posts.count_documents({"ParentId": questionID})       
     if ansCount == 0:
@@ -273,7 +293,7 @@ def selectQuestion(postIDs, db):
     else:
         print("The questionID given does not correspond to any posts listed in the search results.")
     
-    return question["Id"]  
+    return question 
 
 
 
@@ -298,69 +318,65 @@ def postSearchActions(res, userID, db):
     
     
     ERROR_MESSAGE = "Invalid option. Try again..."
-    questionID= selectQuestion(res, db)
-    if questionID == None:
+    question = selectQuestion(res, db)
+    if question == None:
         return
-    
+
+    questionID = question["Id"]
 
     # get user input for post-search action
 
     # 1. post answer
     # get user input for body
-    print( '''
-                USER ACTIONS
-            1. Post a answer
-            2. Print list the selected questions answers."
+
+    needPrintMenu = True
+    while True:
+        if needPrintMenu:
+            print( '''
+                QUESTION ACTION MENU
+            1. Answer
+            2. List answers."
+            0. Main menu
             ''')
-    try:
-        val = int(input("> "))
-    except ValueError:
-        print(ERROR_MESSAGE)
-    if (val == 1):
-        print("Enter body:")
-        body = input("> ").strip()
-        if (postAnswer(body, questionID, userID, db)):
-             print("Successfully posted")
-    elif (val == 2 ):
+            needPrintMenu = False
+        try:
+            val = int(input("> "))
+        except ValueError:
+            print(ERROR_MESSAGE)
+            continue
+
+        if (val == 1):
+            print("Enter body:")
+            body = input("> ").strip()
+            while body == '':
+                body = input("> ").strip()
+            if (postAnswer(body, questionID, userID, db)):
+                print("Successfully posted")
+            else:
+                print("Error: Answer not posted")
+        elif (val == 2 ):
         
-        ans = getAnswers(questionID, userID, db)
-        if len(ans) == 0:
-            print("The question you've selected currently has no answers.")
-            return
+            ans = getAnswers(questionID, db)
+            if len(ans) == 0:
+                print("The question you've selected currently has no answers.")
+                return
 
-        displayPosts(ans, "2")
-        ans = selectAnswer(questionID, db)
-        if ans == None:
-            pass
+            displayPosts(ans, "2", db)
+            ans = selectAnswer(questionID, db)
+            if ans == None:
+                pass
+            else:
+                # ask if they want to vote for the answer
+                # wantToVote = True
+                # if (wantToVote):
+                #     if (votePost(answerID, userID, db)):
+                #         print("Successfully voted")
+                pass
         else:
-            #wantToVote = True
-            #if (wantToVote):
-            # if (votePost(answerID, userID, db)):
-            # print("Successfully voted")
-            pass
-    else:
-        print(ERROR_MESSAGE)
-    #print("Enter body:")
-    #body = input("> ").strip()
-    #if (postAnswer(body, questionID, userID, db)):
-       # print("Successfully posted")
-   # else:
-       # print("Error: Answer not posted")
+            print(ERROR_MESSAGE)
 
-    # 2. List answers
-    #ans = getAnswers(questionID, userID, db)
-    #printAnswers(ans)
-    # get user input for answerID
-    #print("Select a answer (answerID)")
-    #answerID = input("> ")
+    
 
-    # display details
-
-    # ask if they want to vote for the answer
-    #wantToVote = True
-    #if (wantToVote):
-      #  if (votePost(answerID, userID, db)):
-          #  print("Successfully voted")
 
 
   
