@@ -64,7 +64,7 @@ def mainMenu(db):
             res = searchQuestions(keywords, db)
             if len(res) > 0:
                 displayPosts(res, "1", db)
-                postSearchActions(res, userID, db,False)
+                postSearchActions(res, userID, db)
             else:
                 print("No matching posts")
             needPrintMenu = True
@@ -74,6 +74,10 @@ def mainMenu(db):
         else:
             print(ERROR_MESSAGE)
             continue
+
+def initGenerateID(db):
+    for colName in COLLECTION_NAMES.keys():
+        generateID(db[colName])
 
 def indexTerms(db):
     startTime = time.time()
@@ -194,12 +198,13 @@ if __name__ == "__main__":
         startTime = time.time()
 
         # TODO: uncomment this
-        resetDB('localhost', port)
+        #resetDB('localhost', port)
         
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         db = client[DATABASE_NAME]
-        threading.Thread(target=indexText, args=(db,)).start()
+        #threading.Thread(target=indexText, args=(db,)).start()
+        threading.Thread(target=initGenerateID, args=(db,)).start()
         print("TIME: " + str(time.time() - startTime))
         print(db)
         # TODO: create index

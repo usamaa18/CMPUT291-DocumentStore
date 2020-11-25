@@ -1,10 +1,11 @@
+import collections
 from datetime import datetime
 from pymongo.errors import OperationFailure 
 
 
 # return string formatted datetime
 def formatDate(date):
-    return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]   
 
 # generate a unique ID for the collection
 def generateID(collection):
@@ -18,14 +19,15 @@ def generateID(collection):
     # find maxID from database for a given collection
     # only runs when the func is called for the first time for that collection
     if colName not in generateID.maxID.keys():
-        stringIDs = collection.distinct("Id")
-        intIDs = [int(ID) for ID in stringIDs]
+        stringIDs = collection.aggregate([{"$project": {"_id": False, "Id": True}}])
+        intIDs = [int(ID["Id"]) for ID in stringIDs]
         generateID.maxID[colName] = max(intIDs)
+    else:
     
-    # increment maxID for that collection
-    generateID.maxID[colName] += 1
-    #print("New ID: " + str(generateID.maxID[colName]) + " (" + str(time.time()-startTime) + " sec)")
-    return str(generateID.maxID[colName])
+        # increment maxID for that collection
+        generateID.maxID[colName] += 1
+        #print("New ID: " + str(generateID.maxID[colName]) + " (" + str(time.time()-startTime) + " sec)")
+        return str(generateID.maxID[colName])
 
 
 # increment tag count by 1, or create new tag with unique id
@@ -142,6 +144,7 @@ def searchQuestions(keywords, db):
 # lists all answers to a given question
 def getAnswers(questionID, db):
     postType= '2'
+    
     ansCount= db.posts.count_documents({"ParentId": questionID})       
     if ansCount == 0:
         return []
@@ -154,6 +157,7 @@ def getAnswers(questionID, db):
         else:
             accepted_ansID= check_for_accepted["AcceptedAnswerId"]
             accepted_ans= db.posts.find_one({"Id": accepted_ansID})
+            accepted_ans["isAcceptedAns"] = True
             ans= [accepted_ans] + list(db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]}))
         
         return ans

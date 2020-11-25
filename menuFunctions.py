@@ -1,11 +1,6 @@
-
-from os import name
-import random, string
-
-from tabulate import tabulate
 import math
+from tabulate import tabulate
 from pprint import pprint
-import time
 from coreFunctions import *
                 
                 
@@ -34,6 +29,8 @@ def displayPosts(postIDs,PostType, db):
             
             print("Page " + str(currPage) + " of " + str(numPages))
             updatePage = False
+        if (numPages == 1):
+            inputPrompt = "Select post (s): "
         if (currPage == 1):
             inputPrompt = "Go to next page (n), or select post (s): "
         elif (currPage == numPages):
@@ -84,12 +81,11 @@ def printAnswers(answers):
     #printing answers using tabulate
     table= []
     max_count = 80
-    
     column_names= ["AnswerId","Body", "CreationDate", "Score"]
             
     for answer in answers:
         subtable2=[]
-        if answer == answers[0]:
+        if "isAcceptedAns" in answer.keys():
             ans_id= '☆ '+ answer["Id"]
         
         else:
@@ -168,7 +164,8 @@ def postSearchActions(res, userID, db):
             print( '''
                 QUESTION ACTION MENU
             1. Answer
-            2. List answers."
+            2. List answers
+            3. Vote
             0. Main menu
             ''')
             needPrintMenu = False
@@ -187,6 +184,7 @@ def postSearchActions(res, userID, db):
                 print("Successfully posted")
             else:
                 print("Error: Answer not posted")
+            needPrintMenu = True
         elif (val == 2 ):
         
             ans = getAnswers(questionID, db)
@@ -194,17 +192,31 @@ def postSearchActions(res, userID, db):
                 print("The question you've selected currently has no answers.")
                 return
 
+            ans = [row["_id"] for row in ans]
             displayPosts(ans, "2", db)
-            ans = selectAnswer(questionID, db)
-            if ans == None:
+            answerID = selectAnswer(questionID, db)
+            if answerID == None:
                 pass
             else:
-                # ask if they want to vote for the answer
-                # wantToVote = True
-                # if (wantToVote):
-                #     if (votePost(answerID, userID, db)):
-                #         print("Successfully voted")
-                pass
+                #ask if they want to vote for the answer
+                print("Do you wish to vote for this answer? (y/n)")
+                val = input("> ").lower().strip()
+                while val not in ['y', 'n']:
+                    print(ERROR_MESSAGE)
+                    val = input("> ").lower().strip()
+                if (val == 'y'):
+                    if (votePost(answerID, userID, db)):
+                        print("Successfully voted")
+                    else:
+                        print("You have already voted this post!")
+            needPrintMenu = True
+        elif (val == 3):
+            if (votePost(questionID, userID, db)):
+                print("Successfully voted")
+            else:
+                print("You have already voted this post!")
+        elif (val == 0):
+            break
         else:
             print(ERROR_MESSAGE)
 
