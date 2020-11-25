@@ -63,8 +63,7 @@ def mainMenu(db):
                 keywords = input("> ").strip().lower()
             keywords = keywords.split()
             res = searchQuestions(keywords, userID, db)
-            #
-            if res:
+            if len(res) > 0:
                 displayPosts(res,"1")
                 postSearchActions(res, userID, db)
             else:

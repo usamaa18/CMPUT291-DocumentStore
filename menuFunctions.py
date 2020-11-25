@@ -104,15 +104,20 @@ def searchQuestions(keywords, userID, db):
             keywordsSmall.append(word)
 
     projection = ["Id"]
+    postTypeID = "1"
 
-    query = {"terms": {"$in": keywordsLarge}}
+    query = {
+        {"terms": {"$in": keywordsLarge}},
+        {"PostTypeId": postTypeID}
+    }
     if (len(keywordsSmall) > 0):
         try:
             query = { 
-                "$or": [
+                {"$or": [
                     {"terms": {"$in": keywordsLarge}},
                     { "$text": { "$search": " ".join(keywordsSmall) }}
-                ]
+                ]},
+                {"PostTypeId": postTypeID}
             }
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
@@ -124,18 +129,20 @@ def getAnswers(questionID, userID, db):
     postType= '2'
     ansCount= db.posts.count_documents({"ParentId": questionID})       
     if ansCount == 0:
-        print("The question you've selected currently has no answers.")
+        return []
     else:
+        ans = []
         check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
         if check_for_accepted == None:
             ans= list(db.posts.find({"ParentId": questionID}))
             
-            displayPosts(ans,postType)
         else:
             accepted_ansID= check_for_accepted["AcceptedAnswerId"]
             accepted_ans= db.posts.find_one({"Id": accepted_ansID})
             ans= [accepted_ans] + list(db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]}))
-            displayPosts(ans,postType)
+        
+        return ans
+
 
                 
                 
@@ -303,29 +310,36 @@ def postSearchActions(res, userID, db):
     # 1. post answer
     # get user input for body
     print( '''
-               USER ACTIONS
+                USER ACTIONS
             1. Post a answer
             2. Print list the selected questions answers."
             ''')
     try:
-         val = int(input("> "))
+        val = int(input("> "))
     except ValueError:
-         print(ERROR_MESSAGE)
+        print(ERROR_MESSAGE)
     if (val == 1):
-         print("Enter body:")
-         body = input("> ").strip()
-         if (postAnswer(body, questionID, userID, db)):
+        print("Enter body:")
+        body = input("> ").strip()
+        if (postAnswer(body, questionID, userID, db)):
              print("Successfully posted")
     elif (val == 2 ):
-         getAnswers(questionID, userID, db)
-         ans= selectAnswer(questionID, db)
+        
+        ans = getAnswers(questionID, userID, db)
+        if len(ans) == 0:
+            print("The question you've selected currently has no answers.")
+            return
+
+        displayPosts(ans, "2")
+        ans = selectAnswer(questionID, db)
         if ans == None:
+            pass
         else:
             #wantToVote = True
             #if (wantToVote):
             # if (votePost(answerID, userID, db)):
             # print("Successfully voted")
-            break
+            pass
     else:
         print(ERROR_MESSAGE)
     #print("Enter body:")
