@@ -10,6 +10,7 @@ def formatDate(date):
 
 # generate a unique ID for the collection
 def generateID(collection):
+    #Haven't tested this yet, I hope its not too slow
     max_Id= collection.find().sort({"Id":-1}).limit(1)
     Id= max_Id + 1
 
@@ -194,6 +195,7 @@ def displayPosts(res,PostType):
 
 # format search query results in a user-friendly way
 def printQuestions(posts):
+    #printing posts using tabulate
     postTable =[]
     questionColumns = ["Id", "Title", "CreationDate", "Score", "AnswerCount" ]
     answerColumns= ["Id", "Title", "CreationDate", "Score"]
@@ -225,6 +227,7 @@ def printQuestions(posts):
 
 # format answer list in a user-friendly way
 def printAnswers(answers):
+    #printing answers using tabulate
     table= []
     max_count = 80
     
@@ -250,8 +253,12 @@ def printAnswers(answers):
             table.append(subtable2)
 
     print(tabulate(table, headers = column_names))
-    
+#prints selected question in pretty dictionary style
+#returns None if the user input doesnt match id in questions from question search
 def selectQuestion(db,res):
+    #generating this list is a bit slow
+    #takes a few seconds
+    #list of all question id's in keyword search
     qid_list = []
     for post in res:
         if post["PostTypeId"] == "1":
@@ -272,7 +279,9 @@ def selectQuestion(db,res):
 
 
 
-
+#prints selected answer in pretty dictionary form
+# returns None if user inputs a value that doesn't correspond to an answer
+#needs more stringent error correction imo
 def selectAnswer(questionID, db):
     print("Select a answer (AnswerID)")
     answerID = input("> ").strip()
@@ -282,6 +291,7 @@ def selectAnswer(questionID, db):
             print ('{', keys, ":" , selectAnswer[keys] , '}' )
     else:
         print("The answerID selected doesn't correspond with the selected question. Please try again.")
+        return None
     return answerID
 
 
@@ -314,6 +324,13 @@ def postSearchActions(res, userID, db):
     elif (val == 2 ):
          getAnswers(questionID, userID, db)
          ans= selectAnswer(questionID, db)
+        if ans == None:
+        else:
+            #wantToVote = True
+            #if (wantToVote):
+            # if (votePost(answerID, userID, db)):
+            # print("Successfully voted")
+            break
     else:
         print(ERROR_MESSAGE)
     #print("Enter body:")
