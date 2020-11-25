@@ -2,25 +2,19 @@ from datetime import datetime
 import random, string
 from pymongo.errors import OperationFailure 
 from tabulate import tabulate
-import pprint
-   
-
+import math
 # return string formatted datetime
 def formatDate(date):
+
     return date.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
 # generate a unique ID for the collection
 def generateID(collection):
-    return 1 # temporary
-    _id=''
-    chars= string.ascii_lowercase + string.digits
-    for i in range(4):
-        id+= random.choice(chars)
-    ret= collection.find_one({"Id": _id })
-    if ret == None:
-        return _id
-    else:
-        generateID(collection)
+    max_Id= collection.find().sort({"Id":-1}).limit(1)
+    Id= max_Id + 1
+
+    return Id
+
 
 # increment tag count by 1, or create new tag with unique id
 def updateTag(tag, db):
@@ -36,6 +30,7 @@ def updateTag(tag, db):
         }
         db.tags.insert_one(newTag)
     
+
 # posts a question. Returns 1 if successful, 0 otherwise
 def postQuestion(title, body, tags, userID, db):
     newId = generateID(db.posts)
@@ -71,7 +66,7 @@ def postAnswer(body, questionID, userID, db):
         "Id": newId,
         "PostTypeId": "2",
         "CreationDate": datatimeString,
-        "Body": "<p>"+body+"</p>",
+         "Body": "<p>"+body+"</p>",
         "ParentId": questionID,
         "Score": 0,
         "CommentCount": 0,
@@ -96,7 +91,6 @@ def votePost(postID, userID, db):
     db.votes.insert_one(vote)
     db.posts.update_one( {"Id": postID}, {"$inc": {"Score": 1} } )
     return 1
-
 # searches posts for keywords and return cursor object
 def searchQuestions(keywords, userID, db):
     count = 0
@@ -110,6 +104,15 @@ def searchQuestions(keywords, userID, db):
     print(keywordsLarge)
     count += db.posts.count_documents({"terms": {"$in": keywordsLarge}})
     print(count)
+    if count != 0:
+        res = list(db.posts.find({"terms": {"$in": keywordsLarge}}))
+        
+       
+        
+
+
+
+
     
 
     if (len(keywordsSmall) > 0):
@@ -123,73 +126,118 @@ def searchQuestions(keywords, userID, db):
 
 # lists all answers to a given question
 def getAnswers(questionID, userID, db):
-   
-   
-   question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
-   if question == None:
-      print("The post selected is not a question")
-   else:
-      ansCount= db.posts.count_documents({"ParentId": questionID})       
-      if ansCount == 0:
-         print("The question you've selected currently has no answers.")
-      else:
-         check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
-         if check_for_accepted == None:
-            ans= db.posts.find({"ParentId": questionID})
-            printAnswers(check_for_accepted,ans,questionID)
-            selectAnswer(questionID,db)
-         else:
+    #question= db.posts.find_one({"$and": [{"Id":questionID},{"PostTypeId": "1"}]})
+    ansCount= db.posts.count_documents({"ParentId": questionID})       
+    if ansCount == 0:
+        print("The question you've selected currently has no answers.")
+    else:
+        check_for_accepted= db.posts.find_one({"$and": [{"Id": questionID}, {"AcceptedAnswerId":{"$exists": True}}]})
+        if check_for_accepted == None:
+            ans= list(db.posts.find({"ParentId": questionID}))
+            #printAnswers(check_for_accepted,ans,questionID)
+            displayPosts(ans)
+        else:
             accepted_ansID= check_for_accepted["AcceptedAnswerId"]
             accepted_ans= db.posts.find_one({"Id": accepted_ansID})
-            ans= db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]})
-            printAnswers(accepted_ans,ans,questionID)
-            selectAnswer(questionID,db)
-                 
-      
+            ans= [accepted_ans] + list(db.posts.find({"$and":[{"Id": {"$ne": accepted_ansID}},{"ParentId":questionID}]}))
+            #print(ans)
+            #print(accepted_ans)
+            #.insert(0,accepted_ans)
+            displayPosts(ans)
 
+                
+                
 
+def displayPosts(res):
+    currPage = 1
+    maxPerPage = 10
+    lenDocuments= len(res)
+    numPages = math.ceil(float(lenDocuments)/ maxPerPage)
+    updatePage = True
    
+
+    while True:
+        currMaxIndex = currPage * maxPerPage
+        currMinIndex = currMaxIndex - maxPerPage
+        if (currMaxIndex > lenDocuments):
+            currMaxIndex = lenDocuments
         
-
-  
-
+        if updatePage:
+            printAnswers(res[currMinIndex:currMaxIndex])
+            print("Page " + str(currPage) + " of " + str(numPages))
+            updatePage = False
+        if (currPage == 1):
+            inputPrompt = "Go to next page (n), or select post (s): "
+        elif (currPage == numPages):
+            inputPrompt = "Go to previous page (p), or select post (s): "
+        else:
+            inputPrompt = "Go to previous page (p) or next page (n), or select post (s): "
+         
+        
+        user_input = input(inputPrompt).strip().lower()
+        if user_input == 'p' and currPage > 1:
+            currPage -= 1
+            updatePage = True
+        elif user_input == 'n' and currPage < numPages:
+            currPage += 1
+            updatePage = True
+        elif user_input == 's':
+            break
+        else:
+            print("Invalid selection")
+   
     
 
 
 
 # format search query results in a user-friendly way
 def printQuestions(res):
-   
+
     pass
+        
+        
+        
+
+
+
+ 
+
 
 # format answer list in a user-friendly way
-def printAnswers(accepted_ans,answers,questionID):
+def printAnswers(answers):
     table= []
     max_count = 80
     
     column_names= ["AnswerId","Body", "CreationDate", "Score"]
+    
 
-    if accepted_ans != None:
-        subtable1=[]
-        accepted_ans_id= '☆ '+ accepted_ans["Id"]
-        body= accepted_ans["Body"]
-        cdate= accepted_ans["CreationDate"]
-        score= accepted_ans["Score"]
+    #if accepted_ans != None:
+        #subtable1=[]
+        #accepted_ans_id= '☆ '+ accepted_ans["Id"]
+        #body= accepted_ans["Body"]
+        #cdate= accepted_ans["CreationDate"]
+        #score= accepted_ans["Score"]
 
         
-        if len(body) > max_count:
-            subtable1.extend(( accepted_ans_id, body[0:max_count -1 ],cdate,score))
-            table.append(subtable1)
-        else:
-            subtable1.extend((accepted_ans_id, body,cdate,score))
-            table.append(subtable1)
+       ## if len(body) > max_count:
+            #subtable1.extend(( accepted_ans_id, body[0:max_count -1 ],cdate,score))
+            #table.append(subtable1)
+       # else:
+            #subtable1.extend((accepted_ans_id, body,cdate,score))
+           # table.append(subtable1)
             
     for answer in answers:
         subtable2=[]
-        ans_id= answer["Id"]
+        if answer == answers[0]:
+            ans_id= '☆ '+ answer["Id"]
+        
+        else:
+            ans_id= answer["Id"]
+        
         body= answer["Body"]
         cdate= answer["CreationDate"]
         score= answer["Score"]
+        
         if len(body) > max_count:
             subtable2.extend((ans_id,body[0:max_count -1 ],cdate,score))
             table.append(subtable2)
@@ -199,21 +247,43 @@ def printAnswers(accepted_ans,answers,questionID):
 
     print(tabulate(table, headers = column_names))
     
+def selectQuestion(questionID, db,res):
+
+    qid_list = []
+    for post in res:
+        qid_list.append(post["Id"])
+    
+    while True:
+        question = db.posts.find_one({"$and"[{"Id":{"$in": qid_list}}, { "PostTypeId": 1}]})
+        if question != None:
+            for keys in selectAnswer.keys(): 
+                print ('{', keys, ":" , selectAnswer[keys] , '}' )
+            break
+        else:
+            print("The questionID given does not correspond to any posts listed in the search results.")
+            print("Please try entering a valid questionID, again.")
+
+
+
 
 
 def selectAnswer(questionID, db):
-   
+
     while True:
+
 
         print("Select a answer (AnswerID)")
         answerID = input("> ").strip()
         selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
-        postAnswer = []
        
         
         if selectAnswer != None:
-            pprint.pprint(selectAnswer)
+            for keys in selectAnswer.keys(): 
+                print ('{', keys, ":" , selectAnswer[keys] , '}' )
             break
+           
+
+
             
         else:
             print("The answerID selected doesn't correspond with the selected question. Please try again.")
@@ -238,8 +308,7 @@ def postSearchActions(res, userID, db):
 
     # 2. List answers
     ans = getAnswers(questionID, userID, db)
-    #Hibaq: get answers prints the answers
-    #printAnswers(ans) 
+    printAnswers(ans)
     # get user input for answerID
     print("Select a answer (answerID)")
     answerID = input("> ")
@@ -251,29 +320,12 @@ def postSearchActions(res, userID, db):
     if (wantToVote):
         if (votePost(answerID, userID, db)):
             print("Successfully voted")
-        else:
-            print("Error: " + userID + " already voted for this post")
 
 
-    # 3. vote for question
-    if (votePost(questionID, userID, db)):
-        print("Successfully voted")
-    else:
-        print("Error: " + userID + " already voted for this post")
- 
-def selectAnswer(questionID, db):
-    while True:
+  
 
-        print("Select a post (AnswerID)")
-        answerID = input("> ").strip()
-        selectAnswer= db.posts.find_one({"$and":[{"Id": answerID},{"ParentId":questionID}]})
-        postAnswer = []
-       
-        
-        if selectAnswer != None:
-            pprint.pprint(selectAnswer)
-            break
+
             
-        else:
-            print("The answerID selected doesn't correspond with the selected question. Please try again.")
+
+
 

@@ -10,6 +10,7 @@ import orjson
 import bsonjs
 from bson.raw_bson import RawBSONDocument
 
+
 DATABASE_NAME = "291db"
 COLLECTION_NAMES = {
     "tags": "Tags.json",
@@ -181,7 +182,7 @@ if __name__ == "__main__":
             exit()
 
         # TODO: remove this
-        port = 12345
+        #port = 12345
         startTime = time.time()
         # connecting to server
         client = pymongo.MongoClient('localhost', port, document_class=RawBSONDocument)
@@ -191,10 +192,9 @@ if __name__ == "__main__":
         #createIndexAggregate("posts", db)
         #threading.Thread(target=indexText, args=(db,)).start()
         print("TIME: " + str(time.time() - startTime))
-        user_input=str(input("> questionID:"))
-        getAnswers(user_input, None, db)
         print(db)
         # TODO: create index
         #mainMenu(db)
+        getAnswers("1",None, db)
         
 
