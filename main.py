@@ -60,8 +60,14 @@ def mainMenu(db):
             print("Enter keywords to search:")
             keywords = input("> ").strip().lower().split()
             res = searchQuestions(keywords, userID, db)
-            printQuestions(res)
-            postSearchActions(res, userID, db)
+            #
+            if res:
+                displayPosts(res,"1")
+                postSearchActions(res, userID, db)
+            else:
+                print("No matching posts")
+            needPrintMenu = True
+
         elif (val == 0):
             break
         else:
@@ -194,7 +200,7 @@ if __name__ == "__main__":
         print("TIME: " + str(time.time() - startTime))
         print(db)
         # TODO: create index
-        #mainMenu(db)
-        getAnswers("1",None, db)
+        mainMenu(db)
+        #getAnswers("1",None, db)
         
 
