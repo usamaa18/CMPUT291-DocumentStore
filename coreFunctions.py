@@ -147,10 +147,15 @@ def searchQuestions(keywords, db):
                     { "$text": { "$search": " ".join(keywordsSmall) }}
                 ],
                 "PostTypeId": postTypeID
-            }
+            }    
+            db.posts.distinct("_id", filter)
         # text query fails if text index is not fully built
         except OperationFailure as f:
             print ("Skipping " + str(keywordsSmall) + " because text index is still building. Please try again later")
+            filter = {
+                "terms": {"$in": keywordsLarge},
+                "PostTypeId": postTypeID
+            }
 
     return db.posts.distinct("_id", filter)
 
