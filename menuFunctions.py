@@ -3,7 +3,33 @@ from tabulate import tabulate
 from pprint import pprint
 from coreFunctions import *
                 
-                
+ERROR_MESSAGE = "Invalid option. Try again..."
+
+def searchQuestionsMenu(userID, db):
+    print("Enter keywords to search:")
+    keywords = input("> ").strip().lower()
+    while keywords == '':
+        keywords = input("> ").strip().lower()
+    keywords = keywords.split()
+    res = searchQuestions(keywords, db)
+    if len(res) > 0:
+        displayPosts(res, "1", db)
+        postSearchActions(res, userID, db)
+    else:
+        print("No matching posts")
+
+def postQuestionMenu(userID, db):
+    print("Enter title:")
+    title = input("> ").strip()
+    while title == '':
+        title = input("> ").strip()
+    print("Enter body:")
+    body = input("> ").strip()
+    while body == '':
+        body = input("> ").strip()
+    print("Enter tags (optional):")
+    tags = input("> ").strip().lower().split()
+    postQuestion(title, body, tags, userID, db)                
 
 def displayPosts(postIDs,PostType, db):
     currPage = 1
@@ -146,7 +172,6 @@ def selectAnswer(questionID, db):
 def postSearchActions(res, userID, db):
     
     
-    ERROR_MESSAGE = "Invalid option. Try again..."
     question = selectQuestion(res, db)
     if question == None:
         return

@@ -1,14 +1,17 @@
 import re
 import sys
 import time
-import pymongo
 import threading
 import multiprocessing
-from userReport import *
-from menuFunctions import *
+
+import pymongo
 import orjson
 import bsonjs
 from bson.raw_bson import RawBSONDocument
+
+from userReport import *
+from menuFunctions import *
+
 
 
 DATABASE_NAME = "291db"
@@ -17,12 +20,10 @@ COLLECTION_NAMES = {
     "posts": "Posts.json",
     "votes": "Votes.json"
 }
-ERROR_MESSAGE = "Invalid option. Try again..."
 NUM_PROCESSES = 8
 PROCESS_MULTIPLIER = 2
 
 def mainMenu(db):
-    # TODO
     userID = input("User ID (optional): ").strip().lower()
     if userID != '':
         printUserReport(userID, db)
@@ -43,32 +44,11 @@ def mainMenu(db):
             print(ERROR_MESSAGE)
             continue
         if (val == 1):
-            print("Enter title:")
-            title = input("> ").strip()
-            while title == '':
-                title = input("> ").strip()
-            print("Enter body:")
-            body = input("> ").strip()
-            while body == '':
-                body = input("> ").strip()
-            print("Enter tags (optional):")
-            tags = input("> ").strip().lower().split()
-            postQuestion(title, body, tags, userID, db)
+            postQuestionMenu(userID, db)
             needPrintMenu = True
         elif (val == 2):
-            print("Enter keywords to search:")
-            keywords = input("> ").strip().lower()
-            while keywords == '':
-                keywords = input("> ").strip().lower()
-            keywords = keywords.split()
-            res = searchQuestions(keywords, db)
-            if len(res) > 0:
-                displayPosts(res, "1", db)
-                postSearchActions(res, userID, db)
-            else:
-                print("No matching posts")
+            searchQuestionsMenu(userID, db)
             needPrintMenu = True
-
         elif (val == 0):
             break
         else:
@@ -81,8 +61,9 @@ def initGenerateID(db):
 
 def indexTerms(db):
     startTime = time.time()
+    print ("Beginning 'terms' indexing...")
     db["posts"].create_index("terms", name = "termsIndexRegular")
-    print ("Time to index 'terms': " + str(((time.time() - startTime)))) 
+    print("Successfully created 'terms' index (" + str(time.time()-startTime) + " sec)")
 
 def indexText(db):
     startTime = time.time()
@@ -193,22 +174,17 @@ if __name__ == "__main__":
             print("Invalid port number.  Try again...")
             exit()
 
-        # TODO: remove this
-        #port = 12345
         startTime = time.time()
 
-        # TODO: uncomment this
         #resetDB('localhost', port)
         
         # connecting to server
         client = pymongo.MongoClient('localhost', port)
         db = client[DATABASE_NAME]
+        print("PHASE 1 TIME: " + str(time.time() - startTime))
         #threading.Thread(target=indexText, args=(db,)).start()
         threading.Thread(target=initGenerateID, args=(db,)).start()
-        print("TIME: " + str(time.time() - startTime))
-        print(db)
-        # TODO: create index
+
         mainMenu(db)
-        #getAnswers("1",None, db)
         
 
