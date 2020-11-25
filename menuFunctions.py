@@ -31,7 +31,7 @@ def displayPosts(postIDs,PostType, db):
             updatePage = False
         if (numPages == 1):
             inputPrompt = "Select post (s): "
-        if (currPage == 1):
+        elif (currPage == 1):
             inputPrompt = "Go to next page (n), or select post (s): "
         elif (currPage == numPages):
             inputPrompt = "Go to previous page (p), or select post (s): "
