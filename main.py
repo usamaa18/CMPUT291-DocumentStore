@@ -53,7 +53,6 @@ def mainMenu(db):
                 body = input("> ").strip()
             print("Enter tags (optional):")
             tags = input("> ").strip().lower().split()
-            print(tags)
             postQuestion(title, body, tags, userID, db)
             needPrintMenu = True
         elif (val == 2):
